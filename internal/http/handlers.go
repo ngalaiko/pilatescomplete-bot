@@ -13,80 +13,23 @@ import (
 	"github.com/pilatescompletebot/internal/tokens"
 )
 
-func WithToken(
+func Handler(
 	client *pilatescomplete.Client,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
-	next http.HandlerFunc,
 ) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		dvc, ok := device.FromContext(r.Context())
-		if !ok {
-			next(w, r)
-			return
-		}
-
-		token, err := tokensStore.FindByID(r.Context(), dvc.CredentialsID)
-		if errors.Is(err, tokens.ErrNotFound) {
-			creds, err := credentialsStore.FindByID(r.Context(), dvc.CredentialsID)
-			if errors.Is(err, badger.ErrKeyNotFound) {
-				log.Printf("[ERROR] find credentials: %s", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			cookie, err := client.Login(pilatescomplete.LoginData{
-				Login:    creds.Login,
-				Password: creds.Password,
-			})
-			if err != nil {
-				log.Printf("[ERROR] login: %s", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			token = &tokens.Token{
-				CredentialsID: creds.ID,
-				Token:         cookie.Value,
-				Expires:       cookie.Expires,
-			}
-
-			if err := tokensStore.Insert(r.Context(), token); err != nil {
-				log.Printf("[ERROR] insert token: %s", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		} else if err != nil {
-			log.Printf("[ERROR] find token: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-
-		next(w, r.WithContext(tokens.NewContext(r.Context(), token)))
-	}
-}
-
-func WithAuthentication(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		dvc, ok := device.FromCookies(r.Cookies())
-		if ok {
-			r = r.WithContext(device.NewContext(r.Context(), dvc))
-			for _, cookie := range dvc.ToCookies(r.TLS != nil) {
-				w.Header().Add("Set-Cookie", cookie.String())
-			}
-		}
-		next(w, r)
-	}
-}
-
-func Handler(
-	tokensStore *tokens.Store,
-	credentialsStore *credentials.Store,
-) http.HandlerFunc {
-	client := pilatescomplete.Client{}
-
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		_, isAuthenticated := device.FromContext(r.Context())
+	mux.HandleFunc("GET /", handleIndexPage())
+	mux.HandleFunc("POST /", handleLogin(client, credentialsStore, tokensStore))
+	return WithAuthentication(
+		WithToken(client, tokensStore, credentialsStore,
+			mux.ServeHTTP,
+		))
+}
+
+func handleIndexPage() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, isAuthenticated := tokens.FromContext(r.Context())
 		if err := templates.Index(w, templates.IndexData{
 			Authenticated: isAuthenticated,
 		}); err != nil {
@@ -94,9 +37,16 @@ func Handler(
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	})
-	mux.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
-		_, isAuthenticated := device.FromContext(r.Context())
+	}
+}
+
+func handleLogin(
+	client *pilatescomplete.Client,
+	credentialsStore *credentials.Store,
+	tokensStore *tokens.Store,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, isAuthenticated := tokens.FromContext(r.Context())
 		if !isAuthenticated {
 			if err := r.ParseForm(); err != nil {
 				log.Printf("[ERROR] parse form: %s", err)
@@ -151,9 +101,5 @@ func Handler(
 		}
 
 		http.Redirect(w, r, "/", http.StatusFound)
-	})
-	return WithToken(&client, tokensStore, credentialsStore,
-		WithAuthentication(
-			mux.ServeHTTP,
-		))
+	}
 }

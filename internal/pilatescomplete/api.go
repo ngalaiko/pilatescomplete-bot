@@ -3,6 +3,7 @@ package pilatescomplete
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,6 +29,8 @@ type LoginData struct {
 }
 
 func (c Client) Login(data LoginData) (*http.Cookie, error) {
+	log.Printf("[INFO] pilatescompleteapi: login")
+
 	body := fmt.Sprintf("_method=POST&data[User][email]=%s&data[User][password]=%s\n", data.Login, data.Password)
 
 	request, err := http.NewRequest(http.MethodPost, "https://pilatescomplete.wondr.se/", strings.NewReader(body))

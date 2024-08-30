@@ -37,14 +37,14 @@ func (s *Store) FindByID(ctx context.Context, credentialsID credentials.ID) (*To
 	if err := s.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
-		prefix := []byte("id")
+		prefix := []byte(fmt.Sprintf("tokens/%s", credentialsID))
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			key := item.Key()
 			keyParts := bytes.Split(key, []byte("/"))
-			ts, err := strconv.ParseInt(string(keyParts[1]), 10, 64)
+			ts, err := strconv.ParseInt(string(keyParts[2]), 10, 64)
 			if err != nil {
-				panic(err)
+				return err
 			}
 			t := time.Unix(ts, 0)
 			if t.After(time.Now()) {
@@ -70,7 +70,7 @@ func (s *Store) Insert(ctx context.Context, token *Token) error {
 		if err != nil {
 			return err
 		}
-		if err := txn.Set([]byte(fmt.Sprintf("%s/%d", encoded.CredentialsID, encoded.Expires.Unix())), data); err != nil {
+		if err := txn.Set([]byte(fmt.Sprintf("tokens/%s/%d", encoded.CredentialsID, encoded.Expires.Unix())), data); err != nil {
 			return err
 		}
 		return nil

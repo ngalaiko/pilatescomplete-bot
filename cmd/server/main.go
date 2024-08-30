@@ -15,6 +15,7 @@ import (
 	"github.com/pilatescompletebot/internal/credentials"
 	httpx "github.com/pilatescompletebot/internal/http"
 	"github.com/pilatescompletebot/internal/keys"
+	"github.com/pilatescompletebot/internal/pilatescomplete"
 	"github.com/pilatescompletebot/internal/tokens"
 )
 
@@ -36,8 +37,8 @@ func main() {
 
 	credentialsStore := credentials.NewStore(db, encryptionKey)
 	tokensStore := tokens.NewStore(db, encryptionKey)
-
-	htmlHandler := httpx.Handler(tokensStore, credentialsStore)
+	client := pilatescomplete.NewClient()
+	htmlHandler := httpx.Handler(client, tokensStore, credentialsStore)
 
 	httpServer := http.Server{
 		Handler: htmlHandler,
