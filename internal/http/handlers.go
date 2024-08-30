@@ -21,7 +21,7 @@ func Handler(
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", handleIndexPage())
 	mux.HandleFunc("POST /", handleLogin(client, credentialsStore, tokensStore))
-	return WithAuthentication(
+	return WithAuthentication(credentialsStore,
 		WithToken(client, tokensStore, credentialsStore,
 			mux.ServeHTTP,
 		))

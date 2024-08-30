@@ -68,10 +68,25 @@ func WithToken(
 	}
 }
 
-func WithAuthentication(next http.HandlerFunc) http.HandlerFunc {
+func WithAuthentication(
+	credentialsStore *credentials.Store,
+	next http.HandlerFunc,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dvc, ok := device.FromCookies(r.Cookies())
-		if ok {
+		if !ok {
+			next(w, r)
+			return
+		}
+
+		if _, err := credentialsStore.FindByID(r.Context(), dvc.CredentialsID); errors.Is(err, credentials.ErrNotFound) {
+			next(w, r)
+			return
+		} else if err != nil {
+			log.Printf("[ERROR] find credentials: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else {
 			r = r.WithContext(device.NewContext(r.Context(), dvc))
 			for _, cookie := range dvc.ToCookies(r.TLS != nil) {
 				w.Header().Add("Set-Cookie", cookie.String())
