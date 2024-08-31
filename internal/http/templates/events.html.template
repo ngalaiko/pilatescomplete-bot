@@ -6,7 +6,7 @@
 
 <form method="GET" action="/">
 	<label for="from">From</label>
-	<input type="date" id="from" name="from" value="{{ .From.Format "2006-01-02" }}"  />
+	<input type="date" id="from" name="from" value="{{ .From.Format "2006-01-02" }}" />
 
 	<label for="to">To</label>
 	<input type="date" id="to" name="to" value="{{ .To.Format "2006-01-02" }}"  />

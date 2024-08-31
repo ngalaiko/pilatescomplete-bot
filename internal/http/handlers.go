@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/pilatescompletebot/internal/credentials"
 	"github.com/pilatescompletebot/internal/device"
+	"github.com/pilatescompletebot/internal/events"
 	"github.com/pilatescompletebot/internal/http/templates"
 	"github.com/pilatescompletebot/internal/pilatescomplete"
 	"github.com/pilatescompletebot/internal/tokens"
@@ -37,23 +37,6 @@ func handleAuthenticationPage() http.HandlerFunc {
 			return
 		}
 	}
-}
-
-func apiEventsToTemplate(in []*pilatescomplete.Events) ([]*templates.Event, error) {
-	out := make([]*templates.Event, len(in))
-	for i := range in {
-		start, err := time.Parse(time.DateTime, in[i].Activity.Start)
-		if err != nil {
-			return nil, fmt.Errorf("events[%d]: failed to parse start time: %w", i, err)
-		}
-		out[i] = &templates.Event{
-			ID:       in[i].Activity.ID,
-			Location: in[i].ActivityLocation.Name,
-			Name:     in[i].ActivityType.Name,
-			Time:     start,
-		}
-	}
-	return out, nil
 }
 
 func handleIndexPage(client *pilatescomplete.APIClient) http.HandlerFunc {
@@ -87,7 +70,7 @@ func handleIndexPage(client *pilatescomplete.APIClient) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		events, err := apiEventsToTemplate(apiResponse.Events)
+		events, err := events.EventsFromAPI(apiResponse.Events)
 		if err != nil {
 			log.Printf("[ERROR] parse events: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)

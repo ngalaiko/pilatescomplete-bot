@@ -1,6 +1,6 @@
 package pilatescomplete
 
-type Events struct {
+type Event struct {
 	ActivityLocation Location     `json:"ActivityLocation"`
 	ActivityType     ActivityType `json:"ActivityType"`
 	Activity         Activity     `json:"Activity"`

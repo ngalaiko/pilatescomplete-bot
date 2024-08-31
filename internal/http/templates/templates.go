@@ -5,6 +5,8 @@ import (
 	"io"
 	"text/template"
 	"time"
+
+	"github.com/pilatescompletebot/internal/events"
 )
 
 //go:embed *.template
@@ -24,15 +26,8 @@ func Login(w io.Writer, data LoginData) error {
 
 var eventsTemplate = template.Must(template.Must(layoutTemplate.Clone()).ParseFS(fs, "events.html.template"))
 
-type Event struct {
-	ID       string
-	Location string
-	Name     string
-	Time     time.Time
-}
-
 type EventsData struct {
-	Events []*Event
+	Events []*events.Event
 	From   time.Time
 	To     time.Time
 }

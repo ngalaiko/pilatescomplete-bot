@@ -69,7 +69,7 @@ type ListEventsInput struct {
 }
 
 type ListEventsResponse struct {
-	Events []*Events `json:"activities"`
+	Events []*Event `json:"activities"`
 }
 
 func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*ListEventsResponse, error) {
