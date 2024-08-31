@@ -8,8 +8,8 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/pilatescompletebot/internal/credentials"
 	"github.com/pilatescompletebot/internal/device"
+	"github.com/pilatescompletebot/internal/http/templates"
 	"github.com/pilatescompletebot/internal/pilatescomplete"
-	"github.com/pilatescompletebot/internal/templates"
 	"github.com/pilatescompletebot/internal/tokens"
 )
 
@@ -27,13 +27,25 @@ func Handler(
 	)(mux.ServeHTTP)
 }
 
+func handleAuthenticationPage() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := templates.Login(w, templates.LoginData{}); err != nil {
+			log.Printf("[ERROR] %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func handleIndexPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, isAuthenticated := tokens.FromContext(r.Context())
-		if err := templates.Index(w, templates.IndexData{
-			Authenticated: isAuthenticated,
-		}); err != nil {
-			log.Printf("[ERROR] /index.html: %s", err)
+		if !isAuthenticated {
+			handleAuthenticationPage()(w, r)
+			return
+		}
+		if err := templates.Index(w, templates.IndexData{}); err != nil {
+			log.Printf("[ERROR] %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

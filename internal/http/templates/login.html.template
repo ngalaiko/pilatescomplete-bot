@@ -1,0 +1,11 @@
+{{ define "main"}}
+<form action="/" method="POST">
+	<label for="logn">E-mail / phone number / personal number</label>
+	<input id="login" name="login" type="text" />
+
+	<label for="password">Password</label>
+	<input id="password" name="password" type="password" />
+
+	<input type="submit" value="Login"/>
+</form>
+{{ end }}
