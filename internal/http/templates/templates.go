@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io"
 	"text/template"
+	"time"
 )
 
 //go:embed *.template
@@ -21,10 +22,21 @@ func Login(w io.Writer, data LoginData) error {
 	return loginTemplate.Execute(w, data)
 }
 
-var indexTemplate = template.Must(template.Must(layoutTemplate.Clone()).ParseFS(fs, "index.html.template"))
+var eventsTemplate = template.Must(template.Must(layoutTemplate.Clone()).ParseFS(fs, "events.html.template"))
 
-type IndexData struct{}
+type Event struct {
+	ID       string
+	Location string
+	Name     string
+	Time     time.Time
+}
 
-func Index(w io.Writer, data IndexData) error {
-	return indexTemplate.Execute(w, data)
+type EventsData struct {
+	Events []*Event
+	From   time.Time
+	To     time.Time
+}
+
+func Events(w io.Writer, data EventsData) error {
+	return eventsTemplate.Execute(w, data)
 }

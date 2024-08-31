@@ -2,8 +2,10 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/pilatescompletebot/internal/credentials"
@@ -14,12 +16,12 @@ import (
 )
 
 func Handler(
-	client *pilatescomplete.Client,
+	client *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
 ) http.HandlerFunc {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", handleIndexPage())
+	mux.HandleFunc("GET /", handleIndexPage(client))
 	mux.HandleFunc("POST /", handleLogin(client, credentialsStore, tokensStore))
 	return WithMiddlewares(
 		WithAuthentication(credentialsStore),
@@ -37,14 +39,65 @@ func handleAuthenticationPage() http.HandlerFunc {
 	}
 }
 
-func handleIndexPage() http.HandlerFunc {
+func apiEventsToTemplate(in []*pilatescomplete.Events) ([]*templates.Event, error) {
+	out := make([]*templates.Event, len(in))
+	for i := range in {
+		start, err := time.Parse(time.DateTime, in[i].Activity.Start)
+		if err != nil {
+			return nil, fmt.Errorf("events[%d]: failed to parse start time: %w", i, err)
+		}
+		out[i] = &templates.Event{
+			ID:       in[i].Activity.ID,
+			Location: in[i].ActivityLocation.Name,
+			Name:     in[i].ActivityType.Name,
+			Time:     start,
+		}
+	}
+	return out, nil
+}
+
+func handleIndexPage(client *pilatescomplete.APIClient) http.HandlerFunc {
+	parseDateOrNow := func(date string) time.Time {
+		t, err := time.Parse(time.DateOnly, date)
+		if err != nil {
+			return time.Now()
+		}
+		return t
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, isAuthenticated := tokens.FromContext(r.Context())
 		if !isAuthenticated {
 			handleAuthenticationPage()(w, r)
 			return
 		}
-		if err := templates.Index(w, templates.IndexData{}); err != nil {
+
+		from := parseDateOrNow(r.URL.Query().Get("from"))
+		to := parseDateOrNow(r.URL.Query().Get("to"))
+		if to.Before(from) {
+			to = from
+		}
+
+		apiResponse, err := client.ListEvents(r.Context(), pilatescomplete.ListEventsInput{
+			From: &from,
+			To:   &to,
+		})
+		if err != nil {
+			log.Printf("[ERROR] parse form: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		events, err := apiEventsToTemplate(apiResponse.Events)
+		if err != nil {
+			log.Printf("[ERROR] parse events: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if err := templates.Events(w, templates.EventsData{
+			Events: events,
+			From:   from,
+			To:     to,
+		}); err != nil {
 			log.Printf("[ERROR] %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -53,7 +106,7 @@ func handleIndexPage() http.HandlerFunc {
 }
 
 func handleLogin(
-	client *pilatescomplete.Client,
+	client *pilatescomplete.APIClient,
 	credentialsStore *credentials.Store,
 	tokensStore *tokens.Store,
 ) http.HandlerFunc {

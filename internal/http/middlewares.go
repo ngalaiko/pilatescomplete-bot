@@ -25,7 +25,7 @@ func WithMiddlewares(middlewares ...Middleware) Middleware {
 }
 
 func WithToken(
-	client *pilatescomplete.Client,
+	client *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
 ) Middleware {

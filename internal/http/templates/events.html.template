@@ -1,0 +1,31 @@
+{{ define "time" }}<time datetime="{{ .Format "2006-01-02T15:04:05Z07:00" }}">{{ .Format "15:04"  }}</time>{{ end }}
+{{ define "date" }}<time datetime="{{ .Format "2006-01-02T15:04:05Z07:00" }}">{{ .Format "Monday 02 Jan"  }}</time> {{ end }}
+{{ define "datetime" }}<time datetime="{{ .Format "2006-01-02T15:04:05Z07:00" }}">{{ .Format "Monday 02 Jan 15:04"  }}</time> {{ end }}
+
+{{ define "main" }}
+
+<form method="GET" action="/">
+	<label for="from">From</label>
+	<input type="date" id="from" name="from" value="{{ .From.Format "2006-01-02" }}"  />
+
+	<label for="to">To</label>
+	<input type="date" id="to" name="to" value="{{ .To.Format "2006-01-02" }}"  />
+
+	<input type="submit" value="Go" />
+</form>
+
+<ul>
+{{- range .Events }}
+	<li>
+		<form method="POST" action="/events/{{ .ID }}/bookings">
+			<header>
+				{{ template "datetime" .Time }}
+				<p>{{ .Name }}</span> @ <span>{{ .Location }}</p>
+			</header>
+
+			<input type="submit" value="Book" />
+		</form>
+	</li>
+{{- end }}
+<ul>
+{{- end }}
