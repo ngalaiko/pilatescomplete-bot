@@ -17,14 +17,37 @@
 <ul>
 {{- range .Events }}
 	<li>
+		{{ if .Booking }}
+		<form method="DELETE" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}">
+			<header>
+				{{ template "datetime" .Time }}
+				<p>{{ .Name }}</span> @ <span>{{ .Location }}</p>
+			</header>
+
+			{{ if .Booking.IsReserved }}
+				<p>Reserved  <b>#{{ .Booking.Position }}</b></p>
+			{{ end }}
+
+			<input type="submit" value="Cancel" />
+		</form>
+
+		{{ else }}
 		<form method="POST" action="/events/{{ .ID }}/bookings">
 			<header>
 				{{ template "datetime" .Time }}
 				<p>{{ .Name }}</span> @ <span>{{ .Location }}</p>
 			</header>
 
+			{{ if  .Bookable }}
 			<input type="submit" value="Book" />
+			{{ else if .Reservable }}
+			<input type="submit" value="Reserve" />
+			{{ else }}
+			<b>Fully booked</b>
+			<input type="submit" value="Reserve" disabled />
+			{{ end }}
 		</form>
+		{{ end }}
 	</li>
 {{- end }}
 <ul>

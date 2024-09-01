@@ -2,8 +2,10 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
@@ -16,17 +18,26 @@ import (
 )
 
 func Handler(
-	client *pilatescomplete.APIClient,
+	apiClient *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
 ) http.HandlerFunc {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", handleIndexPage(client))
-	mux.HandleFunc("POST /", handleLogin(client, credentialsStore, tokensStore))
+	mux.HandleFunc("GET /", handleIndexPage(apiClient))
+	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
+	mux.HandleFunc("POST /events/{event_id}/bookings", handleCreateBooking())
 	return WithMiddlewares(
 		WithAuthentication(credentialsStore),
-		WithToken(client, tokensStore, credentialsStore),
+		WithToken(apiClient, tokensStore, credentialsStore),
 	)(mux.ServeHTTP)
+}
+
+func handleCreateBooking() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		eventID := parts[2]
+		fmt.Println(eventID)
+	}
 }
 
 func handleAuthenticationPage() http.HandlerFunc {
@@ -104,7 +115,7 @@ func handleLogin(
 
 			login, password := r.PostForm.Get("login"), r.PostForm.Get("password")
 
-			cookie, err := client.Login(pilatescomplete.LoginData{
+			cookie, err := client.Login(r.Context(), pilatescomplete.LoginData{
 				Login:    login,
 				Password: password,
 			})

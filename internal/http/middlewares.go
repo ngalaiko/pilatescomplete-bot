@@ -50,7 +50,7 @@ func WithToken(
 					return
 				}
 
-				cookie, err := client.Login(pilatescomplete.LoginData{
+				cookie, err := client.Login(r.Context(), pilatescomplete.LoginData{
 					Login:    creds.Login,
 					Password: creds.Password,
 				})

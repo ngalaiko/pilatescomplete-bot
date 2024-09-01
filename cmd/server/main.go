@@ -37,8 +37,8 @@ func main() {
 
 	credentialsStore := credentials.NewStore(db, encryptionKey)
 	tokensStore := tokens.NewStore(db, encryptionKey)
-	client := pilatescomplete.NewAPIClient()
-	htmlHandler := httpx.Handler(client, tokensStore, credentialsStore)
+	apiClient := pilatescomplete.NewAPIClient()
+	htmlHandler := httpx.Handler(apiClient, tokensStore, credentialsStore)
 
 	httpServer := http.Server{
 		Handler: htmlHandler,

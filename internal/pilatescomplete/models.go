@@ -1,46 +1,114 @@
 package pilatescomplete
 
+import (
+	"bytes"
+	"fmt"
+	"strconv"
+	"time"
+)
+
+type ActivityBookingStatus string
+
+const (
+	ActivityBookingStatusBooked   = "ok"
+	ActivityBookingStatusReserved = "reserved"
+)
+
+type ActivityBooking struct {
+	BookingID string                `json:"activity_booking_id"`
+	Status    ActivityBookingStatus `json:"status"`
+	Position  Int64String           `json:"position"`
+}
+
+// Int64String is a srting that contains an integer number.
+type Int64String int64
+
+func (u Int64String) Int64() int64 {
+	return int64(u)
+}
+
+func (u *Int64String) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimFunc(data, func(r rune) bool {
+		return r == rune(34)
+	})
+	n, err := strconv.ParseInt(string(data), 10, 32)
+	if err != nil {
+		return err
+	}
+	*u = Int64String(n)
+	return nil
+}
+
+// BoolInt64String is a string that is either "1" or "0"
+type BoolInt64String bool
+
+func (u *BoolInt64String) UnmarshalJSON(data []byte) error {
+	switch string(data) {
+	case "\"1\"":
+		*u = BoolInt64String(true)
+		return nil
+	case "\"0\"":
+		*u = BoolInt64String(false)
+		return nil
+	default:
+		return fmt.Errorf(`%q "0" or "1"`, string(data))
+	}
+}
+
+type DateTime time.Time
+
+func (d DateTime) Time() time.Time {
+	return time.Time(d)
+}
+
+func (d *DateTime) UnmarshalJSON(data []byte) error {
+	t, err := time.Parse(fmt.Sprintf("\"%s\"", time.DateTime), string(data))
+	if err != nil {
+		return err
+	}
+	*d = DateTime(t)
+	return nil
+}
+
 type Event struct {
-	ActivityLocation Location     `json:"ActivityLocation"`
-	ActivityType     ActivityType `json:"ActivityType"`
-	Activity         Activity     `json:"Activity"`
-	User             User         `json:"User"`
-	Unbookable       bool         `json:"unbookable"`
-	Booked           bool         `json:"booked"`
-	Bookable         bool         `json:"bookable"`
-	Reservable       bool         `json:"reservable"`
-	ExtraLinks       []any        `json:"extra_links"`
-	Past             bool         `json:"past"`
-	Links            []any        `json:"links"`
+	ActivityLocation  Location         `json:"ActivityLocation"`
+	ActivityType      ActivityType     `json:"ActivityType"`
+	Activity          Activity         `json:"Activity"`
+	User              User             `json:"User"`
+	ActivityBooking   *ActivityBooking `json:"MyActivityBooking"`
+	ActivityBookingID string           `json:"activity_booking_id"`
+	Unbookable        bool             `json:"unbookable"`
+	Booked            bool             `json:"booked"`
+	Bookable          bool             `json:"bookable"`
+	Reservable        bool             `json:"reservable"`
 }
 
 type Activity struct {
-	ID                   string `json:"id"`
-	ActivityLocationID   string `json:"activity_location_id"`
-	ActivityTypeID       string `json:"activity_type_id"`
-	UserID               string `json:"user_id"`
-	Start                string `json:"start"`
-	Length               string `json:"length"`
-	DisableCost          bool   `json:"disable_cost"`
-	Bookable             bool   `json:"bookable"`
-	TryIt                bool   `json:"try_it"`
-	Places               string `json:"places"`
-	PlacesTryit          string `json:"places_tryit"`
-	Reserves             string `json:"reserves"`
-	BookingPlacesCount   string `json:"booking_places_count"`
-	BookingReservesCount string `json:"booking_reserves_count"`
-	BookingCheckedCount  string `json:"booking_checked_count"`
-	BookingMissedCount   string `json:"booking_missed_count"`
-	BookingTryitCount    string `json:"booking_tryit_count"`
-	Notice               string `json:"notice"`
-	Canceled             any    `json:"canceled"`
-	CancelReason         any    `json:"cancel_reason"`
-	Modified             string `json:"modified"`
-	RUsers               string `json:"r_users"`
-	PlacesLeft           string `json:"places_left"`
-	ReservesLeft         string `json:"reserves_left"`
-	PlacesFull           string `json:"places_full"`
-	ReservesFull         string `json:"reserves_full"`
+	ID                   string          `json:"id"`
+	ActivityLocationID   string          `json:"activity_location_id"`
+	ActivityTypeID       string          `json:"activity_type_id"`
+	UserID               string          `json:"user_id"`
+	Start                DateTime        `json:"start"`
+	Length               Int64String     `json:"length"`
+	DisableCost          bool            `json:"disable_cost"`
+	Bookable             bool            `json:"bookable"`
+	TryIt                bool            `json:"try_it"`
+	Places               Int64String     `json:"places"`
+	PlacesTryit          Int64String     `json:"places_tryit"`
+	Reserves             Int64String     `json:"reserves"`
+	BookingPlacesCount   Int64String     `json:"booking_places_count"`
+	BookingReservesCount Int64String     `json:"booking_reserves_count"`
+	BookingCheckedCount  Int64String     `json:"booking_checked_count"`
+	BookingMissedCount   Int64String     `json:"booking_missed_count"`
+	BookingTryitCount    Int64String     `json:"booking_tryit_count"`
+	Notice               string          `json:"notice"`
+	Canceled             any             `json:"canceled"`
+	CancelReason         any             `json:"cancel_reason"`
+	Modified             DateTime        `json:"modified"`
+	PlacesLeft           Int64String     `json:"places_left"`
+	ReservesLeft         Int64String     `json:"reserves_left"`
+	PlacesFull           BoolInt64String `json:"places_full"`
+	ReservesFull         BoolInt64String `json:"reserves_full"`
 }
 
 type Location struct {

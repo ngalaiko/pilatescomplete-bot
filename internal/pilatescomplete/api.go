@@ -1,6 +1,8 @@
 package pilatescomplete
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,7 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -20,7 +22,10 @@ var (
 	ErrTokenMissingFromContext = errors.New("token missing from context")
 )
 
-var CookieName = "CAKEPHP"
+var (
+	cookieName = "CAKEPHP"
+	userAgent  = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:129.0) Gecko/20100101 Firefox/129.0"
+)
 
 type APIClient struct {
 	httpClient http.Client
@@ -37,29 +42,44 @@ type LoginData struct {
 	Password string
 }
 
-func (c APIClient) Login(data LoginData) (*http.Cookie, error) {
+func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, error) {
 	log.Printf("[INFO] pilatescompleteapi: login")
+	values := url.Values{}
 
-	body := fmt.Sprintf("_method=POST&data[User][email]=%s&data[User][password]=%s\n", data.Login, data.Password)
+	values.Set("_method", http.MethodPost)
+	values.Set("data[User][email]", data.Login)
+	values.Set("data[User][password]", data.Password)
+	body := values.Encode()
 
-	request, err := http.NewRequest(http.MethodPost, "https://pilatescomplete.wondr.se/", strings.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	// TODO: idk why goldng native solution doesn't give me the cookie
+	// figure it out later and drop curl dependency
+	cmd := exec.CommandContext(ctx, "curl",
+		"https://pilatescomplete.wondr.se/",
+		"--request", "POST",
+		"--header", fmt.Sprintf("User-Agent: %s", userAgent),
+		"--header", "Content-Type: application/x-www-form-urlencoded",
+		"--header", "Accept: text/html",
+		"--header", fmt.Sprintf("Content-Length: %d", len(body)),
+		"--data-raw", body,
+		"--silent",
+		"--http1.1",
+		"--include",
+	)
+	stdout := &bytes.Buffer{}
+	cmd.Stdout = stdout
+	if err := cmd.Run(); err != nil {
+		return nil, err
 	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Set("Content-Length", strconv.Itoa(len(body)))
 
-	response, err := c.httpClient.Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer response.Body.Close()
-
-	for _, cookie := range response.Cookies() {
-		if cookie.Name == CookieName {
-			return cookie, nil
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if rawCookie, ok := strings.CutPrefix(line, "set-cookie: "); ok {
+			cookie := parseCookie(rawCookie)
+			return &cookie, nil
 		}
 	}
+
 	return nil, ErrInvalidLoginOrPassword
 }
 
@@ -69,15 +89,10 @@ type ListEventsInput struct {
 }
 
 type ListEventsResponse struct {
-	Events []*Event `json:"activities"`
+	Events []Event `json:"activities"`
 }
 
 func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*ListEventsResponse, error) {
-	token, ok := tokens.FromContext(ctx)
-	if !ok {
-		return nil, ErrTokenMissingFromContext
-	}
-
 	values := url.Values{}
 	if input.From != nil {
 		values.Add("from", input.From.Format(time.DateOnly))
@@ -86,7 +101,7 @@ func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*List
 		values.Add("to", input.To.Format(time.DateOnly))
 	}
 
-	request, err := http.NewRequest(
+	req, err := http.NewRequest(
 		http.MethodGet,
 		fmt.Sprintf("https://pilatescomplete.wondr.se/w_booking/activities/list?%s", values.Encode()),
 		nil,
@@ -94,12 +109,16 @@ func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*List
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	request.Header.Set("Accept", "application/json")
-	request.AddCookie(&http.Cookie{Name: CookieName, Value: token.Token})
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
 
-	log.Printf("[INFO] %s %s", request.Method, request.URL)
+	if err := authenticateRequest(ctx, req); err != nil {
+		return nil, err
+	}
 
-	resp, err := c.httpClient.Do(request)
+	log.Printf("[INFO] %s %s", req.Method, req.URL)
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -111,4 +130,128 @@ func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*List
 	}
 
 	return response, nil
+}
+
+type ErrorResponse struct {
+	Message   string `json:"message"`
+	ErrorCode string `json:"error_code"`
+}
+
+func (p ErrorResponse) Error() string {
+	return p.Message
+}
+
+type APIResponse struct {
+	Result string `json:"result"`
+	ErrorResponse
+}
+
+func (r APIResponse) Error() error {
+	if r.Result != "error" {
+		return nil
+	}
+	return r.ErrorResponse
+}
+
+func (r APIResponse) IsOK() bool {
+	return r.Result == "ok"
+}
+
+type participateResponse struct {
+	APIResponse
+	ActivityBooking
+}
+
+type cancelResponse struct {
+	APIResponse
+}
+
+func (c APIClient) Participate(ctx context.Context, activityID string) (*ActivityBooking, error) {
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("https://pilatescomplete.wondr.se/w_booking/activities/participate/%s/?force=1", activityID),
+		strings.NewReader(`{"ActivityBooking":{"extras":{},"resources":{},"participants":1}}`),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+
+	if err := authenticateRequest(ctx, req); err != nil {
+		return nil, err
+	}
+
+	log.Printf("[INFO] %s %s", req.Method, req.URL)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	response := &participateResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if err := response.Error(); err != nil {
+		return nil, err
+	}
+
+	if !response.IsOK() {
+		return nil, fmt.Errorf("%q: execpected result", response.Result)
+	}
+
+	return &response.ActivityBooking, nil
+}
+
+func (c APIClient) Cancel(ctx context.Context, activityBookingID string) error {
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("https://pilatescomplete.wondr.se/w_booking/activities/cancel/%s/1?force=1", activityBookingID),
+		strings.NewReader(`{"ActivityBooking":{"extras":{},"resources":{},"participants":1}}`),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+
+	if err := authenticateRequest(ctx, req); err != nil {
+		return err
+	}
+
+	log.Printf("[INFO] %s %s", req.Method, req.URL)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	response := &cancelResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if err := response.Error(); err != nil {
+		return err
+	}
+
+	if !response.IsOK() {
+		return fmt.Errorf("%q: execpected result", response.Result)
+	}
+
+	return nil
+}
+
+func authenticateRequest(ctx context.Context, req *http.Request) error {
+	token, ok := tokens.FromContext(ctx)
+	if !ok {
+		return ErrTokenMissingFromContext
+	}
+	req.Header.Set("Cookie", fmt.Sprintf("%s=%s", cookieName, token.Token))
+	// req.Header.Set("Cookie", fmt.Sprintf("%s=c4f598a57307bfb08215b8e15514fe8a", cookieName))
+	return nil
 }
