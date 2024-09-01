@@ -15,7 +15,7 @@ const (
 )
 
 type ActivityBooking struct {
-	BookingID string                `json:"activity_booking_id"`
+	BookingID string                `json:"id"`
 	Status    ActivityBookingStatus `json:"status"`
 	Position  Int64String           `json:"position"`
 }

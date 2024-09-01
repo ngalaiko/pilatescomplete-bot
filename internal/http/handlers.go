@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -25,18 +24,44 @@ func Handler(
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", handleIndexPage(apiClient))
 	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
-	mux.HandleFunc("POST /events/{event_id}/bookings", handleCreateBooking())
+	mux.HandleFunc("POST /events/{event_id}/bookings", handleCreateBooking(apiClient))
+	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", handleDeleteBooking(apiClient))
 	return WithMiddlewares(
 		WithAuthentication(credentialsStore),
 		WithToken(apiClient, tokensStore, credentialsStore),
 	)(mux.ServeHTTP)
 }
 
-func handleCreateBooking() http.HandlerFunc {
+func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		bookingID := parts[4]
+		isDelete := r.URL.Query().Get("delete") == "true"
+
+		if isDelete {
+			if err := apiClient.Cancel(r.Context(), bookingID); err != nil {
+				log.Printf("[ERROR] %s", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+
+		http.Redirect(w, r, r.Referer(), http.StatusFound)
+	}
+}
+
+func handleCreateBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		eventID := parts[2]
-		fmt.Println(eventID)
+
+		if _, err := apiClient.Participate(r.Context(), eventID); err != nil {
+			log.Printf("[ERROR] %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, r.Referer(), http.StatusFound)
 	}
 }
 

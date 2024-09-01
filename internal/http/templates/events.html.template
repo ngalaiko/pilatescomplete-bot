@@ -18,7 +18,14 @@
 {{- range .Events }}
 	<li>
 		{{ if .Booking }}
-		<form method="DELETE" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}">
+		<form 
+			method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
+			{{ if .Booking.IsReserved }}
+			onsubmit="return confirm('Are you sure you want to cancel booking?');"
+			{{ else if .Booking.IsBooked }}
+			onsubmit="return confirm('Are you sure you want to cancel reservation?');"
+			{{ end }}
+		>
 			<header>
 				{{ template "datetime" .Time }}
 				<p>{{ .Name }}</span> @ <span>{{ .Location }}</p>
