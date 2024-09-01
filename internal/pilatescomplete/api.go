@@ -146,9 +146,14 @@ type APIResponse struct {
 	ErrorResponse
 }
 
+var ErrActivityBookingTooEarly = errors.New("too early to book the activity")
+
 func (r APIResponse) Error() error {
 	if r.Result != "error" {
 		return nil
+	}
+	if r.ErrorCode == "ACTIVITY_BOOKING_TO_EARLY" {
+		return ErrActivityBookingTooEarly
 	}
 	return r.ErrorResponse
 }
@@ -166,7 +171,7 @@ type cancelResponse struct {
 	APIResponse
 }
 
-func (c APIClient) Participate(ctx context.Context, activityID string) (*ActivityBooking, error) {
+func (c APIClient) BookActivity(ctx context.Context, activityID string) (*ActivityBooking, error) {
 	req, err := http.NewRequest(
 		http.MethodPost,
 		fmt.Sprintf("https://pilatescomplete.wondr.se/w_booking/activities/participate/%s/?force=1", activityID),
@@ -206,7 +211,7 @@ func (c APIClient) Participate(ctx context.Context, activityID string) (*Activit
 	return &response.ActivityBooking, nil
 }
 
-func (c APIClient) Cancel(ctx context.Context, activityBookingID string) error {
+func (c APIClient) CancelBooking(ctx context.Context, activityBookingID string) error {
 	req, err := http.NewRequest(
 		http.MethodPost,
 		fmt.Sprintf("https://pilatescomplete.wondr.se/w_booking/activities/cancel/%s/1?force=1", activityBookingID),
@@ -252,6 +257,5 @@ func authenticateRequest(ctx context.Context, req *http.Request) error {
 		return ErrTokenMissingFromContext
 	}
 	req.Header.Set("Cookie", fmt.Sprintf("%s=%s", cookieName, token.Token))
-	// req.Header.Set("Cookie", fmt.Sprintf("%s=c4f598a57307bfb08215b8e15514fe8a", cookieName))
 	return nil
 }

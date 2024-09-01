@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -39,7 +40,7 @@ func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc 
 		isDelete := r.URL.Query().Get("delete") == "true"
 
 		if isDelete {
-			if err := apiClient.Cancel(r.Context(), bookingID); err != nil {
+			if err := apiClient.CancelBooking(r.Context(), bookingID); err != nil {
 				log.Printf("[ERROR] %s", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -55,7 +56,12 @@ func handleCreateBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc 
 		parts := strings.Split(r.URL.Path, "/")
 		eventID := parts[2]
 
-		if _, err := apiClient.Participate(r.Context(), eventID); err != nil {
+		if _, err := apiClient.BookActivity(r.Context(), eventID); errors.Is(err, pilatescomplete.ErrActivityBookingTooEarly) {
+			// TODO handle scheduling
+			fmt.Println("TOO EARLY")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else if err != nil {
 			log.Printf("[ERROR] %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return

@@ -20,11 +20,19 @@ const (
 )
 
 type Event struct {
-	ID       ID
-	Location string
-	Name     string
-	Time     time.Time
-	Booking  *bookings.Booking
+	ID ID
+	// LocationDisplayName is a name of the event's location
+	LocationDisplayName string
+	// DisplayName is a display name of the event
+	DisplayName string
+	// DisplayNotice is a display name subtitle of the event
+	DisplayNotice string
+	// Time is a time when event starts
+	Time time.Time
+	// BookableFrom is a time from when event can be booked / reserved
+	BookableFrom time.Time
+	// Booking contains an active booking for the event
+	Booking *bookings.Booking
 
 	PlacesTotal   int64
 	PlacesTaken   int64
@@ -40,6 +48,19 @@ func (e Event) Reservable() bool {
 	return e.ReservesTaken < e.ReservesTotal
 }
 
+var (
+	minute = time.Second * 60
+	hour   = minute * 60
+	day    = hour * 24
+)
+
+// calculateBookableFrom returns timestame from wich an event can be booke.
+// it's 7am on the day event occurs.
+func calculateBookableFrom(event *pilatescomplete.Event) time.Time {
+	ts := event.Activity.Start.Time().Add(-day * time.Duration(event.ActivityType.DaysInFutureBook.Int64()))
+	return time.Date(ts.Year(), ts.Month(), ts.Day(), 7, 0, 0, 0, ts.Location())
+}
+
 func EventFromAPI(event pilatescomplete.Event) (*Event, error) {
 	var booking *bookings.Booking
 	if event.ActivityBooking != nil {
@@ -50,15 +71,17 @@ func EventFromAPI(event pilatescomplete.Event) (*Event, error) {
 		}
 	}
 	return &Event{
-		ID:            ID(event.Activity.ID),
-		Location:      event.ActivityLocation.Name,
-		Name:          event.ActivityType.Name,
-		Time:          event.Activity.Start.Time(),
-		Booking:       booking,
-		PlacesTotal:   event.Activity.Places.Int64(),
-		PlacesTaken:   event.Activity.BookingPlacesCount.Int64(),
-		ReservesTotal: event.Activity.Reserves.Int64(),
-		ReservesTaken: event.Activity.BookingReservesCount.Int64(),
+		ID:                  ID(event.Activity.ID),
+		LocationDisplayName: event.ActivityLocation.Name,
+		DisplayNotice:       event.Activity.Notice,
+		DisplayName:         event.ActivityType.Name,
+		Time:                event.Activity.Start.Time(),
+		Booking:             booking,
+		PlacesTotal:         event.Activity.Places.Int64(),
+		PlacesTaken:         event.Activity.BookingPlacesCount.Int64(),
+		ReservesTotal:       event.Activity.Reserves.Int64(),
+		ReservesTaken:       event.Activity.BookingReservesCount.Int64(),
+		BookableFrom:        calculateBookableFrom(&event),
 	}, nil
 }
 

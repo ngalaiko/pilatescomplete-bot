@@ -12,7 +12,11 @@ import (
 //go:embed *.template
 var fs embed.FS
 
-var templates = template.Must(template.ParseFS(fs, "*.template"))
+var funcs = template.New("").Funcs(map[string]interface{}{
+	"now": time.Now,
+})
+
+var templates = template.Must(funcs.ParseFS(fs, "*.template"))
 
 var layoutTemplate = templates.Lookup("_layout.html.template")
 

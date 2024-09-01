@@ -28,7 +28,7 @@
 		>
 			<header>
 				{{ template "datetime" .Time }}
-				<p>{{ .Name }}</span> @ <span>{{ .Location }}</p>
+				<p>{{ .DisplayName }}</span> @ <span>{{ .LocationDisplayName }}</p>
 			</header>
 
 			{{ if .Booking.IsReserved }}
@@ -42,7 +42,8 @@
 		<form method="POST" action="/events/{{ .ID }}/bookings">
 			<header>
 				{{ template "datetime" .Time }}
-				<p>{{ .Name }}</span> @ <span>{{ .Location }}</p>
+				<u>{{ .DisplayName }} @ {{ .LocationDisplayName }}</u>
+				{{ with .DisplayNotice }}<small>{{ . }}</small>{{ end }}
 			</header>
 
 			{{ if  .Bookable }}
