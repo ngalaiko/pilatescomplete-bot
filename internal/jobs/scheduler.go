@@ -58,7 +58,7 @@ func (s *Scheduler) Schedule(ctx context.Context, job *Job) error {
 
 func (s *Scheduler) setupTimerForJob(job *Job) {
 	duration := time.Until(job.Time)
-	log.Printf("[INFO] scheduled job %q to run after %s", job.ID, duration)
+	log.Printf("[INFO] scheduled job %q to run at %s", job.ID, job.Time)
 	s.timersGuard.Lock()
 	s.timers[job.ID] = time.AfterFunc(duration, func() {
 		s.runJob(job)
