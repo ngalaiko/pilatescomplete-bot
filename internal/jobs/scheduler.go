@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -159,6 +160,10 @@ func (s *Scheduler) listJobs(_ context.Context) ([]*Job, error) {
 		prefix := []byte("jobs/")
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
+			// only consider id keys 
+			if len(bytes.Split(item.Key(), []byte("/"))) == 3 {
+				continue
+			}
 			if err := item.Value(func(value []byte) error {
 				job := &Job{}
 				if err := json.Unmarshal(value, &job); err != nil {
