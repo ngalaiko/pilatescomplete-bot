@@ -1,4 +1,3 @@
-* retry jobs
 * extract code to lookup or get token
 * log to file
 * display errors in template

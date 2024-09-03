@@ -88,16 +88,28 @@ func (s *Scheduler) runJob(job *Job) {
 		log.Printf("[ERROR] job %q failed: %s", job.ID, err)
 		job.Errors = append(job.Errors, err.Error())
 		job.Status = JobStatusFailing
-	} else {
-		log.Printf("[ERROR] job %q succeededs", job.ID)
-		job.Errors = append(job.Errors, "")
 		job.Status = JobStatusSucceded
+		if next := nextRetry(job); next != nil {
+			job.Time = *next
+			s.setupTimerForJob(job)
+		}
+	} else {
+		log.Printf("[INFO] job %q succeeded", job.ID)
+		job.Errors = append(job.Errors, "")
 	}
 
 	if err := s.insertJob(ctx, job); err != nil {
 		log.Printf("[ERROR] failed update job %q: %s", job.ID, err)
 		return
 	}
+}
+
+func nextRetry(job *Job) *time.Time {
+	if len(job.Attempts) == 5 {
+		return nil
+	}
+	next := job.Time.Add(100 * time.Millisecond * 2 << len(job.Attempts))
+	return &next
 }
 
 func (s *Scheduler) insertJob(_ context.Context, job *Job) error {
