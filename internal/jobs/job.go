@@ -46,38 +46,14 @@ type BookEventJob struct {
 
 func (j Job) Do(ctx context.Context, s *Scheduler) error {
 	if j.BookEvent != nil {
-		token, err := s.tokensStore.FindByID(ctx, j.BookEvent.CredentialsID)
-		if errors.Is(err, tokens.ErrNotFound) {
-			creds, err := s.credentialsStore.FindByID(ctx, j.BookEvent.CredentialsID)
-			if err != nil {
-				return fmt.Errorf("find credentials: %w", err)
-			}
-
-			cookie, err := s.apiClient.Login(ctx, pilatescomplete.LoginData{
-				Login:    creds.Login,
-				Password: creds.Password,
-			})
-			if err != nil {
-				return fmt.Errorf("login: %w", err)
-			}
-
-			token = &tokens.Token{
-				CredentialsID: creds.ID,
-				Token:         cookie.Value,
-				Expires:       cookie.Expires,
-			}
-
-			if err := s.tokensStore.Insert(ctx, token); err != nil {
-				return fmt.Errorf("insert token: %w", err)
-			}
-		} else if err != nil {
-			return fmt.Errorf("find token: %w", err)
+		ctx, err := s.authenticationService.AuthenticateContext(ctx, j.BookEvent.CredentialsID)
+		if err != nil {
+			return fmt.Errorf("authenticate context: %w", err)
 		}
 
-		ctx := tokens.NewContext(ctx, token)
-
-		if _, err := s.apiClient.BookActivity(ctx, string(j.BookEvent.EventID)); err != nil {
-			// handle already booked
+		if _, err := s.apiClient.BookActivity(ctx, string(j.BookEvent.EventID)); errors.Is(err, pilatescomplete.ErrActivityAlreadyBooked) {
+			return nil
+		} else if err != nil {
 			return fmt.Errorf("book activity: %w", err)
 		}
 

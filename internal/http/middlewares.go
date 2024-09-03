@@ -5,10 +5,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/pilatescompletebot/internal/authentication"
 	"github.com/pilatescompletebot/internal/credentials"
 	"github.com/pilatescompletebot/internal/device"
-	"github.com/pilatescompletebot/internal/pilatescomplete"
-	"github.com/pilatescompletebot/internal/tokens"
 )
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
@@ -24,11 +23,7 @@ func WithMiddlewares(middlewares ...Middleware) Middleware {
 	}
 }
 
-func WithToken(
-	client *pilatescomplete.APIClient,
-	tokensStore *tokens.Store,
-	credentialsStore *credentials.Store,
-) Middleware {
+func WithToken(authenticationService *authentication.Service) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			dvc, ok := device.FromContext(r.Context())
@@ -37,54 +32,22 @@ func WithToken(
 				return
 			}
 
-			token, err := tokensStore.FindByID(r.Context(), dvc.CredentialsID)
-			if errors.Is(err, tokens.ErrNotFound) {
-				creds, err := credentialsStore.FindByID(r.Context(), dvc.CredentialsID)
-				if err != nil {
-					if errors.Is(err, credentials.ErrNotFound) {
-						next(w, r)
-						return
-					}
-					log.Printf("[ERROR] find credentials: %s", err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-
-				cookie, err := client.Login(r.Context(), pilatescomplete.LoginData{
-					Login:    creds.Login,
-					Password: creds.Password,
-				})
-				if err != nil {
-					log.Printf("[ERROR] login: %s", err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-
-				token = &tokens.Token{
-					CredentialsID: creds.ID,
-					Token:         cookie.Value,
-					Expires:       cookie.Expires,
-				}
-
-				if err := tokensStore.Insert(r.Context(), token); err != nil {
-					log.Printf("[ERROR] insert token: %s", err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
+			ctx, err := authenticationService.AuthenticateContext(r.Context(), dvc.CredentialsID)
+			if errors.Is(err, credentials.ErrNotFound) {
+				next(w, r)
+				return
 			} else if err != nil {
 				log.Printf("[ERROR] find token: %s", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			next(w, r.WithContext(tokens.NewContext(r.Context(), token)))
+			next(w, r.WithContext(ctx))
 		}
 	}
 }
 
-func WithAuthentication(
-	credentialsStore *credentials.Store,
-) Middleware {
+func WithAuthentication(credentialsStore *credentials.Store) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			dvc, ok := device.FromCookies(r.Cookies())

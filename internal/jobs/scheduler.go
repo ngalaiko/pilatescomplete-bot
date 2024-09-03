@@ -10,16 +10,14 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/credentials"
+	"github.com/pilatescompletebot/internal/authentication"
 	"github.com/pilatescompletebot/internal/pilatescomplete"
-	"github.com/pilatescompletebot/internal/tokens"
 )
 
 type Scheduler struct {
-	db               *badger.DB
-	apiClient        *pilatescomplete.APIClient
-	tokensStore      *tokens.Store
-	credentialsStore *credentials.Store
+	db                    *badger.DB
+	apiClient             *pilatescomplete.APIClient
+	authenticationService *authentication.Service
 
 	timersGuard sync.RWMutex
 	timers      map[ID]*time.Timer
@@ -28,15 +26,13 @@ type Scheduler struct {
 func NewScheduler(
 	db *badger.DB,
 	apiClient *pilatescomplete.APIClient,
-	tokensStore *tokens.Store,
-	credentialsStore *credentials.Store,
+	authenticationService *authentication.Service,
 ) *Scheduler {
 	return &Scheduler{
-		db:               db,
-		apiClient:        apiClient,
-		tokensStore:      tokensStore,
-		credentialsStore: credentialsStore,
-		timers:           map[ID]*time.Timer{},
+		db:                    db,
+		apiClient:             apiClient,
+		authenticationService: authenticationService,
+		timers:                map[ID]*time.Timer{},
 	}
 }
 

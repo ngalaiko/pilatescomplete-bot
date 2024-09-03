@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/pilatescompletebot/internal/authentication"
 	"github.com/pilatescompletebot/internal/credentials"
 	httpx "github.com/pilatescompletebot/internal/http"
 	"github.com/pilatescompletebot/internal/jobs"
@@ -42,11 +43,12 @@ func main() {
 	credentialsStore := credentials.NewStore(db, encryptionKey)
 	tokensStore := tokens.NewStore(db, encryptionKey)
 	apiClient := pilatescomplete.NewAPIClient()
-	scheduler := jobs.NewScheduler(db, apiClient, tokensStore, credentialsStore)
+	authenticationService := authentication.NewService(tokensStore, credentialsStore, apiClient)
+	scheduler := jobs.NewScheduler(db, apiClient, authenticationService)
 	if err := scheduler.Init(ctx); err != nil {
 		log.Fatalf("[ERROR] init scheduler: %s", err)
 	}
-	htmlHandler := httpx.Handler(apiClient, tokensStore, credentialsStore, scheduler)
+	htmlHandler := httpx.Handler(apiClient, tokensStore, credentialsStore, scheduler, authenticationService)
 
 	httpServer := http.Server{
 		Handler: htmlHandler,

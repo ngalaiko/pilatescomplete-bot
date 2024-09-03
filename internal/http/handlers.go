@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/pilatescompletebot/internal/authentication"
 	"github.com/pilatescompletebot/internal/credentials"
 	"github.com/pilatescompletebot/internal/device"
 	"github.com/pilatescompletebot/internal/events"
@@ -22,6 +23,7 @@ func Handler(
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
 	scheduler *jobs.Scheduler,
+	authenticationService *authentication.Service,
 ) http.HandlerFunc {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", handleListEvents(apiClient))
@@ -30,7 +32,7 @@ func Handler(
 	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", handleDeleteBooking(apiClient))
 	return WithMiddlewares(
 		WithAuthentication(credentialsStore),
-		WithToken(apiClient, tokensStore, credentialsStore),
+		WithToken(authenticationService),
 	)(mux.ServeHTTP)
 }
 
