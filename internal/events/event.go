@@ -55,10 +55,10 @@ var (
 )
 
 // calculateBookableFrom returns timestame from wich an event can be booke.
-// it's 7am on the day event occurs.
+// it's 07:00:01 on the day event occurs.
 func calculateBookableFrom(event *pilatescomplete.Event) time.Time {
 	ts := event.Activity.Start.Time().Add(-day * time.Duration(event.ActivityType.DaysInFutureBook.Int64()))
-	return time.Date(ts.Year(), ts.Month(), ts.Day(), 7, 0, 0, 0, ts.Location())
+	return time.Date(ts.Year(), ts.Month(), ts.Day(), 7, 0, 1, 0, ts.Location())
 }
 
 func EventFromAPI(event pilatescomplete.Event) (*Event, error) {

@@ -14,6 +14,7 @@ const (
 	BookingStatusUnknown = iota
 	BookingStatusReserved
 	BookingStatusBooked
+	BookingStatusChecked
 )
 
 type Booking struct {
@@ -49,6 +50,8 @@ func statusFromAPI(status pilatescomplete.ActivityBookingStatus) (BookingStatus,
 		return BookingStatusBooked, nil
 	case pilatescomplete.ActivityBookingStatusReserved:
 		return BookingStatusReserved, nil
+	case pilatescomplete.ActivityBookingStatusChecked:
+		return BookingStatusChecked, nil
 	default:
 		return BookingStatusUnknown, fmt.Errorf("%q: unknown booking status", status)
 	}

@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/pilatescompletebot/internal/device"
 	"github.com/pilatescompletebot/internal/events"
 	"github.com/pilatescompletebot/internal/http/templates"
+	"github.com/pilatescompletebot/internal/jobs"
 	"github.com/pilatescompletebot/internal/pilatescomplete"
 	"github.com/pilatescompletebot/internal/tokens"
 )
@@ -21,11 +21,12 @@ func Handler(
 	apiClient *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
+	scheduler *jobs.Scheduler,
 ) http.HandlerFunc {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", handleIndexPage(apiClient))
+	mux.HandleFunc("GET /", handleListEvents(apiClient))
 	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
-	mux.HandleFunc("POST /events/{event_id}/bookings", handleCreateBooking(apiClient))
+	mux.HandleFunc("POST /events/{event_id}/bookings", handleCreateBooking(apiClient, scheduler))
 	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", handleDeleteBooking(apiClient))
 	return WithMiddlewares(
 		WithAuthentication(credentialsStore),
@@ -51,16 +52,38 @@ func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc 
 	}
 }
 
-func handleCreateBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc {
+func handleCreateBooking(
+	apiClient *pilatescomplete.APIClient,
+	scheduler *jobs.Scheduler,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		eventID := parts[2]
 
-		if _, err := apiClient.BookActivity(r.Context(), eventID); errors.Is(err, pilatescomplete.ErrActivityBookingTooEarly) {
-			// TODO handle scheduling
-			fmt.Println("TOO EARLY")
-			w.WriteHeader(http.StatusInternalServerError)
+		if err := r.ParseForm(); err != nil {
+			log.Printf("[ERROR] parse form: %s", err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
+		}
+
+		if _, err := apiClient.BookActivity(r.Context(), eventID); errors.Is(err, pilatescomplete.ErrActivityBookingTooEarly) {
+			bookableFrom, err := time.Parse(time.RFC3339, r.PostForm.Get("bookable_from"))
+			if err != nil {
+				log.Printf("[ERROR] parse bookable_from: %s", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			job, err := jobs.NewBookEventJob(r.Context(), events.ID(eventID), bookableFrom)
+			if err != nil {
+				log.Printf("[ERROR] new book event job: %s", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if err := scheduler.Schedule(r.Context(), job); err != nil {
+				log.Printf("[ERROR] schedule: %s", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		} else if err != nil {
 			log.Printf("[ERROR] %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -81,7 +104,7 @@ func handleAuthenticationPage() http.HandlerFunc {
 	}
 }
 
-func handleIndexPage(client *pilatescomplete.APIClient) http.HandlerFunc {
+func handleListEvents(client *pilatescomplete.APIClient) http.HandlerFunc {
 	parseDateOrNow := func(date string) time.Time {
 		t, err := time.Parse(time.DateOnly, date)
 		if err != nil {

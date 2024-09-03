@@ -40,6 +40,8 @@
 
 		{{ else }}
 		<form method="POST" action="/events/{{ .ID }}/bookings">
+			<input type="text" name="bookable_from" value="{{ .BookableFrom.Format "2006-01-02T15:04:05Z07:00" }}" hidden />
+
 			<header>
 				{{ template "datetime" .Time }}
 				<u>{{ .DisplayName }} @ {{ .LocationDisplayName }}</u>

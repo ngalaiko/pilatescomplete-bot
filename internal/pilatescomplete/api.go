@@ -152,6 +152,7 @@ func (r APIResponse) Error() error {
 	if r.Result != "error" {
 		return nil
 	}
+	// TODO: booking exists error
 	if r.ErrorCode == "ACTIVITY_BOOKING_TO_EARLY" {
 		return ErrActivityBookingTooEarly
 	}
