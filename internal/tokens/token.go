@@ -4,8 +4,8 @@ import (
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/pilatescompletebot/internal/credentials"
-	"github.com/pilatescompletebot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/credentials"
+	"github.com/pilatescomplete-bot/internal/keys"
 )
 
 type ID string

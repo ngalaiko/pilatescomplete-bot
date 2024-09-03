@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/keys"
 )
 
 type Store struct {

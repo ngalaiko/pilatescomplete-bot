@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pilatescompletebot/internal/tokens"
+	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
 var (

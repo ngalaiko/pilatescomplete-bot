@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/authentication"
-	"github.com/pilatescompletebot/internal/credentials"
-	"github.com/pilatescompletebot/internal/device"
-	"github.com/pilatescompletebot/internal/events"
-	"github.com/pilatescompletebot/internal/http/templates"
-	"github.com/pilatescompletebot/internal/jobs"
-	"github.com/pilatescompletebot/internal/pilatescomplete"
-	"github.com/pilatescompletebot/internal/tokens"
+	"github.com/pilatescomplete-bot/internal/authentication"
+	"github.com/pilatescomplete-bot/internal/credentials"
+	"github.com/pilatescomplete-bot/internal/device"
+	"github.com/pilatescomplete-bot/internal/events"
+	"github.com/pilatescomplete-bot/internal/http/templates"
+	"github.com/pilatescomplete-bot/internal/jobs"
+	"github.com/pilatescomplete-bot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
 func Handler(

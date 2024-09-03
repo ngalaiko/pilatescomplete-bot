@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/keys"
 )
 
 func Test(t *testing.T) {

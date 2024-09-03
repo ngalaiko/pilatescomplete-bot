@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pilatescompletebot/internal/bookings"
-	"github.com/pilatescompletebot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/bookings"
+	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 )
 
 type ID string

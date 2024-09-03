@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/credentials"
-	"github.com/pilatescompletebot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/credentials"
+	"github.com/pilatescomplete-bot/internal/keys"
 )
 
 type Store struct {

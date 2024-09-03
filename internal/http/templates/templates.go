@@ -6,7 +6,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/pilatescompletebot/internal/events"
+	"github.com/pilatescomplete-bot/internal/events"
 )
 
 //go:embed *.template

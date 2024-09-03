@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pilatescompletebot/internal/credentials"
-	"github.com/pilatescompletebot/internal/pilatescomplete"
-	"github.com/pilatescompletebot/internal/tokens"
+	"github.com/pilatescomplete-bot/internal/credentials"
+	"github.com/pilatescomplete-bot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
 type Service struct {

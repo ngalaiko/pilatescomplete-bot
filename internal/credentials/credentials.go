@@ -2,7 +2,7 @@ package credentials
 
 import (
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/pilatescompletebot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/keys"
 )
 
 type ID string

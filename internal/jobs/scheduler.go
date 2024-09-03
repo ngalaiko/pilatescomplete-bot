@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/authentication"
-	"github.com/pilatescompletebot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/authentication"
+	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 )
 
 type Scheduler struct {

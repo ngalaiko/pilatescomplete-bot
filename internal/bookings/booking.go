@@ -3,7 +3,7 @@ package bookings
 import (
 	"fmt"
 
-	"github.com/pilatescompletebot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 )
 
 type ID string

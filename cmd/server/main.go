@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/authentication"
-	"github.com/pilatescompletebot/internal/credentials"
-	httpx "github.com/pilatescompletebot/internal/http"
-	"github.com/pilatescompletebot/internal/jobs"
-	"github.com/pilatescompletebot/internal/keys"
-	"github.com/pilatescompletebot/internal/pilatescomplete"
-	"github.com/pilatescompletebot/internal/tokens"
+	"github.com/pilatescomplete-bot/internal/authentication"
+	"github.com/pilatescomplete-bot/internal/credentials"
+	httpx "github.com/pilatescomplete-bot/internal/http"
+	"github.com/pilatescomplete-bot/internal/jobs"
+	"github.com/pilatescomplete-bot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
 func main() {
@@ -26,6 +26,10 @@ func main() {
 	dbPath := flag.String("database-path", "pilatedcomplete.db", "path to the database")
 	key := flag.String("encryption-key", "please-change-me", "encryption key for the database")
 	flag.Parse()
+
+	if envKey := os.Getenv("ENCRYPTION_KEY"); envKey != "" {
+		key = &envKey
+	}
 
 	encryptionKey, err := keys.ParseKey([]byte(*key))
 	if err != nil {

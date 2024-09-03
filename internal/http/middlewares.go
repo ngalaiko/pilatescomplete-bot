@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/pilatescompletebot/internal/authentication"
-	"github.com/pilatescompletebot/internal/credentials"
-	"github.com/pilatescompletebot/internal/device"
+	"github.com/pilatescomplete-bot/internal/authentication"
+	"github.com/pilatescomplete-bot/internal/credentials"
+	"github.com/pilatescomplete-bot/internal/device"
 )
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc

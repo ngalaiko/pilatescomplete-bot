@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescompletebot/internal/keys"
-	"github.com/pilatescompletebot/internal/tokens"
+	"github.com/pilatescomplete-bot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
 func TestFind(t *testing.T) {

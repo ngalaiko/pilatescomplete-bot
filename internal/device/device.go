@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pilatescompletebot/internal/credentials"
+	"github.com/pilatescomplete-bot/internal/credentials"
 )
 
 type Device struct {

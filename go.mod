@@ -1,4 +1,4 @@
-module github.com/pilatescompletebot
+module github.com/pilatescomplete-bot
 
 go 1.22.4
 
