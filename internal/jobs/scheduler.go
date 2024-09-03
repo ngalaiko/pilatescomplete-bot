@@ -88,7 +88,6 @@ func (s *Scheduler) runJob(job *Job) {
 		log.Printf("[ERROR] job %q failed: %s", job.ID, err)
 		job.Errors = append(job.Errors, err.Error())
 		job.Status = JobStatusFailing
-		// TODO: retry job after some time
 	} else {
 		log.Printf("[ERROR] job %q succeededs", job.ID)
 		job.Errors = append(job.Errors, "")

@@ -51,8 +51,6 @@ func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, err
 	values.Set("data[User][password]", data.Password)
 	body := values.Encode()
 
-	// TODO: idk why goldng native solution doesn't give me the cookie
-	// figure it out later and drop curl dependency
 	cmd := exec.CommandContext(ctx, "curl",
 		"https://pilatescomplete.wondr.se/",
 		"--request", "POST",
@@ -138,7 +136,7 @@ type ErrorResponse struct {
 }
 
 func (p ErrorResponse) Error() string {
-	return p.Message
+	return fmt.Sprintf("%s: %s", p.ErrorCode, p.Message)
 }
 
 type APIResponse struct {
@@ -146,13 +144,18 @@ type APIResponse struct {
 	ErrorResponse
 }
 
-var ErrActivityBookingTooEarly = errors.New("too early to book the activity")
+var (
+	ErrActivityBookingTooEarly = errors.New("too early to book the activity")
+	ErrActivityAlreadyBooked   = errors.New("activity booking already exists")
+)
 
 func (r APIResponse) Error() error {
 	if r.Result != "error" {
 		return nil
 	}
-	// TODO: booking exists error
+	if r.ErrorCode == "USER_ALREADY_BOOKED" {
+		return ErrActivityAlreadyBooked
+	}
 	if r.ErrorCode == "ACTIVITY_BOOKING_TO_EARLY" {
 		return ErrActivityBookingTooEarly
 	}

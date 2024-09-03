@@ -1,3 +1,9 @@
+* retry jobs
+* extract code to lookup or get token
+* log to file
+* display errors in template
+* deploy
+* htmlx
 * caldev integration
 * csrf
-* htmlx
+* drop curl dependency

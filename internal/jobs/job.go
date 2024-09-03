@@ -46,7 +46,6 @@ type BookEventJob struct {
 
 func (j Job) Do(ctx context.Context, s *Scheduler) error {
 	if j.BookEvent != nil {
-		// TODO: this code is duplicated in middleware, and in login handler. extract somewhere
 		token, err := s.tokensStore.FindByID(ctx, j.BookEvent.CredentialsID)
 		if errors.Is(err, tokens.ErrNotFound) {
 			creds, err := s.credentialsStore.FindByID(ctx, j.BookEvent.CredentialsID)

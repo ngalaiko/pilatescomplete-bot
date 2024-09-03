@@ -174,7 +174,6 @@ func handleLogin(
 				Password: password,
 			})
 			if err != nil {
-				// TODO: handle in a good way
 				log.Printf("[ERROR] login: %s", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
