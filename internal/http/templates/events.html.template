@@ -3,7 +3,6 @@
 {{ define "datetime" }}<time datetime="{{ .Format "2006-01-02T15:04:05Z07:00" }}">{{ .Format "Monday 02 Jan 15:04"  }}</time> {{ end }}
 
 {{ define "main" }}
-
 <form method="GET" action="/">
 	<label for="from">From</label>
 	<input type="date" id="from" name="from" value="{{ .From.Format "2006-01-02" }}" />

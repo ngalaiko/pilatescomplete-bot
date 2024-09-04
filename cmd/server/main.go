@@ -15,6 +15,7 @@ import (
 	"github.com/pilatescomplete-bot/internal/authentication"
 	"github.com/pilatescomplete-bot/internal/credentials"
 	httpx "github.com/pilatescomplete-bot/internal/http"
+	"github.com/pilatescomplete-bot/internal/http/templates"
 	"github.com/pilatescomplete-bot/internal/jobs"
 	"github.com/pilatescomplete-bot/internal/keys"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
@@ -25,6 +26,7 @@ func main() {
 	addr := flag.String("address", ":http", "http address to listen to")
 	dbPath := flag.String("database-path", "pilatedcomplete.db", "path to the database")
 	key := flag.String("encryption-key", "please-change-me", "encryption key for the database")
+	watch := flag.Bool("watch", false, "if true, will serve from filesystem")
 	flag.Parse()
 
 	if envKey := os.Getenv("ENCRYPTION_KEY"); envKey != "" {
@@ -44,6 +46,13 @@ func main() {
 		log.Fatalf("[ERROR] db %s", err)
 	}
 
+	var renderer templates.Renderer
+	if *watch {
+		renderer = templates.NewFilesystemTemplates("./internal/http/templates")
+	} else {
+		renderer = templates.NewEmbedTemplates()
+	}
+
 	credentialsStore := credentials.NewStore(db, encryptionKey)
 	tokensStore := tokens.NewStore(db, encryptionKey)
 	apiClient := pilatescomplete.NewAPIClient()
@@ -52,7 +61,7 @@ func main() {
 	if err := scheduler.Init(ctx); err != nil {
 		log.Fatalf("[ERROR] init scheduler: %s", err)
 	}
-	htmlHandler := httpx.Handler(apiClient, tokensStore, credentialsStore, scheduler, authenticationService)
+	htmlHandler := httpx.Handler(renderer, apiClient, tokensStore, credentialsStore, scheduler, authenticationService)
 
 	httpServer := http.Server{
 		Handler: htmlHandler,

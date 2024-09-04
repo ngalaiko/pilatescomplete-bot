@@ -19,6 +19,7 @@ import (
 )
 
 func Handler(
+	renderer templates.Renderer,
 	apiClient *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
@@ -26,7 +27,7 @@ func Handler(
 	authenticationService *authentication.Service,
 ) http.HandlerFunc {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", handleListEvents(apiClient))
+	mux.HandleFunc("GET /", handleListEvents(renderer, apiClient))
 	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
 	mux.HandleFunc("POST /events/{event_id}/bookings", handleCreateBooking(apiClient, scheduler))
 	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", handleDeleteBooking(apiClient))
@@ -96,9 +97,9 @@ func handleCreateBooking(
 	}
 }
 
-func handleAuthenticationPage() http.HandlerFunc {
+func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := templates.Login(w, templates.LoginData{}); err != nil {
+		if err := renderer.RenderLoginPage(w, templates.LoginData{}); err != nil {
 			log.Printf("[ERROR] %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -106,7 +107,10 @@ func handleAuthenticationPage() http.HandlerFunc {
 	}
 }
 
-func handleListEvents(client *pilatescomplete.APIClient) http.HandlerFunc {
+func handleListEvents(
+	renderer templates.Renderer,
+	client *pilatescomplete.APIClient,
+) http.HandlerFunc {
 	parseDateOrNow := func(date string) time.Time {
 		t, err := time.Parse(time.DateOnly, date)
 		if err != nil {
@@ -118,7 +122,7 @@ func handleListEvents(client *pilatescomplete.APIClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, isAuthenticated := tokens.FromContext(r.Context())
 		if !isAuthenticated {
-			handleAuthenticationPage()(w, r)
+			handleAuthenticationPage(renderer)(w, r)
 			return
 		}
 
@@ -143,7 +147,7 @@ func handleListEvents(client *pilatescomplete.APIClient) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if err := templates.Events(w, templates.EventsData{
+		if err := renderer.RenderEventsPage(w, templates.EventsData{
 			Events: events,
 			From:   from,
 			To:     to,

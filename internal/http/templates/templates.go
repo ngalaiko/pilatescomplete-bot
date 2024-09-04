@@ -2,33 +2,18 @@ package templates
 
 import (
 	"embed"
+	"fmt"
 	"io"
+	"io/fs"
+	"log"
+	"os"
 	"text/template"
 	"time"
 
 	"github.com/pilatescomplete-bot/internal/events"
 )
 
-//go:embed *.template
-var fs embed.FS
-
-var funcs = template.New("").Funcs(map[string]interface{}{
-	"now": time.Now,
-})
-
-var templates = template.Must(funcs.ParseFS(fs, "*.template"))
-
-var layoutTemplate = templates.Lookup("_layout.html.template")
-
-var loginTemplate = template.Must(template.Must(layoutTemplate.Clone()).ParseFS(fs, "login.html.template"))
-
 type LoginData struct{}
-
-func Login(w io.Writer, data LoginData) error {
-	return loginTemplate.Execute(w, data)
-}
-
-var eventsTemplate = template.Must(template.Must(layoutTemplate.Clone()).ParseFS(fs, "events.html.template"))
 
 type EventsData struct {
 	Events []*events.Event
@@ -36,6 +21,78 @@ type EventsData struct {
 	To     time.Time
 }
 
-func Events(w io.Writer, data EventsData) error {
+type Renderer interface {
+	RenderEventsPage(io.Writer, EventsData) error
+	RenderLoginPage(io.Writer, LoginData) error
+}
+
+var _ Renderer = &FilesystemTemplates{}
+
+type FilesystemTemplates struct {
+	filesystem fs.FS
+}
+
+func NewFilesystemTemplates(path string) *FilesystemTemplates {
+	log.Printf("[INFO] watching templates at: %s", path)
+	return &FilesystemTemplates{
+		filesystem: os.DirFS(path),
+	}
+}
+
+func (e *FilesystemTemplates) RenderLoginPage(w io.Writer, data LoginData) error {
+	templates, err := template.New("").Funcs(functions).ParseFS(e.filesystem, "*.template")
+	if err != nil {
+		return fmt.Errorf("parse fs: %w", err)
+	}
+	loginTemplate, err := templates.Lookup("_layout.html.template").ParseFS(e.filesystem, "login.html.template")
+	if err != nil {
+		return fmt.Errorf("parse login template: %w", err)
+	}
+	return loginTemplate.Execute(w, data)
+}
+
+func (e *FilesystemTemplates) RenderEventsPage(w io.Writer, data EventsData) error {
+	templates, err := template.New("").Funcs(functions).ParseFS(e.filesystem, "*.template")
+	if err != nil {
+		return fmt.Errorf("parse fs: %w", err)
+	}
+	eventsTemplate, err := templates.Lookup("_layout.html.template").ParseFS(e.filesystem, "events.html.template")
+	if err != nil {
+		return fmt.Errorf("parse events template: %w", err)
+	}
 	return eventsTemplate.Execute(w, data)
+}
+
+var _ Renderer = &EmbedTemplates{}
+
+type EmbedTemplates struct {
+	loginTemplate  *template.Template
+	eventsTemplate *template.Template
+}
+
+//go:embed *.template
+var embedFS embed.FS
+
+var functions = map[string]interface{}{
+	"now": time.Now,
+}
+
+func NewEmbedTemplates() *EmbedTemplates {
+	base := template.New("").Funcs(functions)
+
+	log.Printf("[INFO] using embedded templates")
+	templates := template.Must(base.ParseFS(embedFS, "*.template"))
+	layoutTemplate := templates.Lookup("_layout.html.template")
+	return &EmbedTemplates{
+		loginTemplate:  template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "login.html.template")),
+		eventsTemplate: template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "events.html.template")),
+	}
+}
+
+func (e *EmbedTemplates) RenderLoginPage(w io.Writer, data LoginData) error {
+	return e.loginTemplate.Execute(w, data)
+}
+
+func (e *EmbedTemplates) RenderEventsPage(w io.Writer, data EventsData) error {
+	return e.eventsTemplate.Execute(w, data)
 }
