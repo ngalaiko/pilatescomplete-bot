@@ -13,6 +13,11 @@ import (
 	"github.com/pilatescomplete-bot/internal/events"
 )
 
+type DayData struct {
+	Events []*events.Event
+	Time   time.Time
+}
+
 type LoginData struct{}
 
 type EventsData struct {
@@ -23,6 +28,7 @@ type EventsData struct {
 
 type Renderer interface {
 	RenderEventsPage(io.Writer, EventsData) error
+	RenderDayPage(io.Writer, DayData) error
 	RenderLoginPage(io.Writer, LoginData) error
 }
 
@@ -63,18 +69,39 @@ func (e *FilesystemTemplates) RenderEventsPage(w io.Writer, data EventsData) err
 	return eventsTemplate.Execute(w, data)
 }
 
+func (e *FilesystemTemplates) RenderDayPage(w io.Writer, data DayData) error {
+	templates, err := template.New("").Funcs(functions).ParseFS(e.filesystem, "*.template")
+	if err != nil {
+		return fmt.Errorf("parse fs: %w", err)
+	}
+	eventsTemplate, err := templates.Lookup("_layout.html.template").ParseFS(e.filesystem, "day.html.template")
+	if err != nil {
+		return fmt.Errorf("parse events template: %w", err)
+	}
+	return eventsTemplate.Execute(w, data)
+}
+
 var _ Renderer = &EmbedTemplates{}
 
 type EmbedTemplates struct {
 	loginTemplate  *template.Template
 	eventsTemplate *template.Template
+	dayTemplate    *template.Template
 }
 
 //go:embed *.template
 var embedFS embed.FS
 
+var (
+	minute = time.Second * 60
+	hour   = minute * 60
+	day    = hour * 60
+)
+
 var functions = map[string]interface{}{
-	"now": time.Now,
+	"now":        time.Now,
+	"startOfDay": func(ts time.Time) time.Time { return ts.Round(day) },
+	"plusHours":  func(hours int, ts time.Time) time.Time { return ts.Add(time.Duration(hours) * hour) },
 }
 
 func NewEmbedTemplates() *EmbedTemplates {
@@ -86,6 +113,7 @@ func NewEmbedTemplates() *EmbedTemplates {
 	return &EmbedTemplates{
 		loginTemplate:  template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "login.html.template")),
 		eventsTemplate: template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "events.html.template")),
+		dayTemplate:    template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "day.html.template")),
 	}
 }
 
@@ -95,4 +123,8 @@ func (e *EmbedTemplates) RenderLoginPage(w io.Writer, data LoginData) error {
 
 func (e *EmbedTemplates) RenderEventsPage(w io.Writer, data EventsData) error {
 	return e.eventsTemplate.Execute(w, data)
+}
+
+func (e *EmbedTemplates) RenderDayPage(w io.Writer, data DayData) error {
+	return e.dayTemplate.Execute(w, data)
 }

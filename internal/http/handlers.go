@@ -16,6 +16,7 @@ import (
 	"github.com/pilatescomplete-bot/internal/http/templates"
 	"github.com/pilatescomplete-bot/internal/jobs"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/timezone"
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
@@ -30,6 +31,7 @@ func Handler(
 ) http.HandlerFunc {
 	requireAuth := WithAuthentication(authenticationService, credentialsStore)
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /years/{year}/months/{month}/days/{day}", requireAuth(handleDayEvents(renderer, eventsService)))
 	mux.HandleFunc("GET /", requireAuth(handleListEvents(renderer, eventsService)))
 	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
 	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
@@ -120,6 +122,37 @@ func handleCreateBooking(
 func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := renderer.RenderLoginPage(w, templates.LoginData{}); err != nil {
+			log.Printf("[ERROR] %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func handleDayEvents(
+	renderer templates.Renderer,
+	eventsService *events.Service,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ts, err := time.Parse("/years/2006/months/01/days/02", r.URL.Path)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		ts = timezone.InStockholm(ts)
+		events, err := eventsService.ListEvents(r.Context(), events.ListEventsInput{
+			From: &ts,
+			To:   &ts,
+		})
+		if err != nil {
+			log.Printf("[ERROR] parse form: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if err := renderer.RenderDayPage(w, templates.DayData{
+			Events: events,
+			Time:   ts,
+		}); err != nil {
 			log.Printf("[ERROR] %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return

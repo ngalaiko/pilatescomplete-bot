@@ -29,10 +29,8 @@
 			onsubmit="return confirm('Are you sure you want to cancel job?');"
 			{{ end }}
 		>
-			<header>
-				{{ template "datetime" .Time }}
-				<p>{{ .DisplayName }}</span> @ <span>{{ .LocationDisplayName }}</p>
-			</header>
+			{{ template "datetime" .StartTime }}
+			<u>{{ .DisplayName }}</span> @ <span>{{ .LocationDisplayName }}</u>
 
 			{{ if .Booking.IsReserved }}
 				<p>Reserved  <b>#{{ .Booking.Position }}</b></p>
@@ -45,11 +43,9 @@
 		<form method="POST" action="/events/{{ .ID }}/bookings">
 			<input type="text" name="bookable_from" value="{{ .BookableFrom.Format "2006-01-02T15:04:05Z07:00" }}" hidden />
 
-			<header>
-				{{ template "datetime" .Time }}
-				<u>{{ .DisplayName }} @ {{ .LocationDisplayName }}</u>
-				{{ with .DisplayNotice }}<small>{{ . }}</small>{{ end }}
-			</header>
+			{{ template "datetime" .StartTime }}
+			<u>{{ .DisplayName }} @ {{ .LocationDisplayName }}</u>
+			{{ with .DisplayNotice }}<small>{{ . }}</small>{{ end }}
 
 			{{ if  .Bookable }}
 			<input type="submit" value="Book" />

@@ -25,8 +25,10 @@ type Event struct {
 	DisplayName string
 	// DisplayNotice is a display name subtitle of the event
 	DisplayNotice string
-	// Time is a time when event starts
-	Time time.Time
+	// StartTime is a time when event starts
+	StartTime time.Time
+	// StartTime is a time when event starts
+	EndTime time.Time
 	// BookableFrom is a time from when event can be booked / reserved
 	BookableFrom time.Time
 	// Booking contains an active booking for the event
@@ -36,6 +38,10 @@ type Event struct {
 	PlacesTaken   int64
 	ReservesTotal int64
 	ReservesTaken int64
+}
+
+func (e Event) Duration() time.Duration {
+	return e.EndTime.Sub(e.StartTime)
 }
 
 func (e Event) Bookable() bool {
@@ -73,7 +79,8 @@ func EventFromAPI(event pilatescomplete.Event) (*Event, error) {
 		LocationDisplayName: event.ActivityLocation.Name,
 		DisplayNotice:       event.Activity.Notice,
 		DisplayName:         event.ActivityType.Name,
-		Time:                event.Activity.Start.Time(),
+		StartTime:           event.Activity.Start.Time(),
+		EndTime:             event.Activity.Start.Time().Add(minute * time.Duration(event.Activity.Length.Int64())),
 		Booking:             booking,
 		PlacesTotal:         event.Activity.Places.Int64(),
 		PlacesTaken:         event.Activity.BookingPlacesCount.Int64(),

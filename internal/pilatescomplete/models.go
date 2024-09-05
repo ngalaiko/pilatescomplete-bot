@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/pilatescomplete-bot/internal/timezone"
 )
 
 type ActivityBookingStatus string
@@ -56,16 +58,6 @@ func (u *BoolInt64String) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func mustLoadLocation(zone string) *time.Location {
-	location, err := time.LoadLocation(zone)
-	if err != nil {
-		panic(err)
-	}
-	return location
-}
-
-var stockholmLocation = mustLoadLocation("Europe/Stockholm")
-
 // DateTime is date and time in stockholm, marshalled as 2006-01-02 15:04:05
 type DateTime time.Time
 
@@ -78,7 +70,7 @@ func (d *DateTime) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*d = DateTime(time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), stockholmLocation))
+	*d = DateTime(timezone.InStockholm(t))
 	return nil
 }
 
