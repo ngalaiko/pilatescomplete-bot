@@ -19,6 +19,7 @@ import (
 	"github.com/pilatescomplete-bot/internal/http/templates"
 	"github.com/pilatescomplete-bot/internal/jobs"
 	"github.com/pilatescomplete-bot/internal/keys"
+	"github.com/pilatescomplete-bot/internal/migrations"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
@@ -44,7 +45,11 @@ func main() {
 
 	db, err := badger.Open(badger.DefaultOptions(*dbPath))
 	if err != nil {
-		log.Fatalf("[ERROR] db %s", err)
+		log.Fatalf("[ERROR] db: %s", err)
+	}
+
+	if err := migrations.Run(db); err != nil {
+		log.Fatalf("[ERROR] db migratons: %s", err)
 	}
 
 	var renderer templates.Renderer

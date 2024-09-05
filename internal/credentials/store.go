@@ -93,5 +93,5 @@ func idKey(id string) []byte {
 }
 
 func loginKey(login string) []byte {
-	return []byte(fmt.Sprintf("credentials/logins/%s", login))
+	return []byte(fmt.Sprintf("logins/%s", login))
 }
