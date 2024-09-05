@@ -27,7 +27,7 @@ func NewStore(
 	}
 }
 
-func (s *Store) FindByID(ctx context.Context, id ID) (*Credentials, error) {
+func (s *Store) FindByID(ctx context.Context, id string) (*Credentials, error) {
 	var credential EncodedCredentials
 	if err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(idKey(id))
@@ -88,7 +88,7 @@ func (s *Store) Insert(ctx context.Context, credential *Credentials) error {
 	})
 }
 
-func idKey(id ID) []byte {
+func idKey(id string) []byte {
 	return []byte(fmt.Sprintf("credentials/%s", id))
 }
 

@@ -1,18 +1,11 @@
 package credentials
 
 import (
-	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pilatescomplete-bot/internal/keys"
 )
 
-type ID string
-
-func NewID() ID {
-	return ID(gonanoid.Must())
-}
-
 type Credentials struct {
-	ID       ID     `json:"id"`
+	ID       string `json:"id"`
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
@@ -30,7 +23,7 @@ func (c Credentials) Encode(key *keys.Key) (*EncodedCredentials, error) {
 }
 
 type EncodedCredentials struct {
-	ID       ID     `json:"id"`
+	ID       string `json:"id"`
 	Login    string `json:"login"`
 	Password []byte `json:"password"`
 }

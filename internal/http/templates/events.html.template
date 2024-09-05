@@ -18,11 +18,15 @@
 	<li>
 		{{ if .Booking }}
 		<form 
-			method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
 			{{ if .Booking.IsReserved }}
+			method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
 			onsubmit="return confirm('Are you sure you want to cancel booking?');"
 			{{ else if .Booking.IsBooked }}
+			method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
 			onsubmit="return confirm('Are you sure you want to cancel reservation?');"
+			{{ else if .Booking.IsJobScheduled }}
+			method="POST" action="/jobs/{{ .Booking.ID }}?delete=true" 
+			onsubmit="return confirm('Are you sure you want to cancel job?');"
 			{{ end }}
 		>
 			<header>

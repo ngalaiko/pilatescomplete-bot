@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/pilatescomplete-bot/internal/credentials"
 	"github.com/pilatescomplete-bot/internal/keys"
 )
 
@@ -32,7 +31,7 @@ func NewStore(
 var ErrNotFound = errors.New("not found")
 
 // FindByID returns first token for credentials id that did not expire.
-func (s *Store) FindByID(ctx context.Context, credentialsID credentials.ID) (*Token, error) {
+func (s *Store) FindByID(ctx context.Context, credentialsID string) (*Token, error) {
 	var token EncodedToken
 	if err := s.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)

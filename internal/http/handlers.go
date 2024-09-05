@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pilatescomplete-bot/internal/authentication"
 	"github.com/pilatescomplete-bot/internal/credentials"
 	"github.com/pilatescomplete-bot/internal/device"
@@ -23,17 +24,37 @@ func Handler(
 	apiClient *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
-	scheduler *jobs.Scheduler,
 	authenticationService *authentication.Service,
+	eventsService *events.Service,
+	scheduler *jobs.Scheduler,
 ) http.HandlerFunc {
 	requireAuth := WithAuthentication(authenticationService, credentialsStore)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", requireAuth(handleListEvents(renderer, apiClient)))
-	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
+	mux.HandleFunc("GET /", requireAuth(handleListEvents(renderer, eventsService)))
 	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
+	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
 	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(apiClient, scheduler)))
 	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(apiClient)))
+	mux.HandleFunc("POST /jobs/{job_id}", requireAuth(handleDeleteJob(scheduler)))
 	return mux.ServeHTTP
+}
+
+func handleDeleteJob(scheduler *jobs.Scheduler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		bookingID := parts[2]
+		isDelete := r.URL.Query().Get("delete") == "true"
+
+		if isDelete {
+			if err := scheduler.DeleteByID(r.Context(), bookingID); err != nil {
+				log.Printf("[ERROR] %s", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+
+		http.Redirect(w, r, r.Referer(), http.StatusFound)
+	}
 }
 
 func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc {
@@ -75,7 +96,7 @@ func handleCreateBooking(
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			job, err := jobs.NewBookEventJob(r.Context(), events.ID(eventID), bookableFrom)
+			job, err := jobs.NewBookEventJob(r.Context(), eventID, bookableFrom)
 			if err != nil {
 				log.Printf("[ERROR] new book event job: %s", err)
 				w.WriteHeader(http.StatusBadRequest)
@@ -108,7 +129,7 @@ func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
 
 func handleListEvents(
 	renderer templates.Renderer,
-	client *pilatescomplete.APIClient,
+	eventsService *events.Service,
 ) http.HandlerFunc {
 	parseDateOrNow := func(date string) time.Time {
 		t, err := time.Parse(time.DateOnly, date)
@@ -123,18 +144,12 @@ func handleListEvents(
 		if to.Before(from) {
 			to = from
 		}
-		apiResponse, err := client.ListEvents(r.Context(), pilatescomplete.ListEventsInput{
+		events, err := eventsService.ListEvents(r.Context(), events.ListEventsInput{
 			From: &from,
 			To:   &to,
 		})
 		if err != nil {
 			log.Printf("[ERROR] parse form: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		events, err := events.EventsFromAPI(apiResponse.Events)
-		if err != nil {
-			log.Printf("[ERROR] parse events: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -179,7 +194,7 @@ func handleLogin(
 			creds, err := credentialsStore.FindByLogin(r.Context(), login)
 			if errors.Is(err, badger.ErrKeyNotFound) {
 				creds = &credentials.Credentials{
-					ID:       credentials.NewID(),
+					ID:       gonanoid.Must(),
 					Login:    login,
 					Password: password,
 				}

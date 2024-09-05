@@ -8,8 +8,6 @@ import (
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 )
 
-type ID string
-
 type EventAvailability uint
 
 const (
@@ -20,7 +18,7 @@ const (
 )
 
 type Event struct {
-	ID ID
+	ID string
 	// LocationDisplayName is a name of the event's location
 	LocationDisplayName string
 	// DisplayName is a display name of the event
@@ -71,7 +69,7 @@ func EventFromAPI(event pilatescomplete.Event) (*Event, error) {
 		}
 	}
 	return &Event{
-		ID:                  ID(event.Activity.ID),
+		ID:                  event.Activity.ID,
 		LocationDisplayName: event.ActivityLocation.Name,
 		DisplayNotice:       event.Activity.Notice,
 		DisplayName:         event.ActivityType.Name,

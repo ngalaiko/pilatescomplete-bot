@@ -1,45 +1,42 @@
 package jobs
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/pilatescomplete-bot/internal/authentication"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
 type Scheduler struct {
-	db                    *badger.DB
+	store                 *Store
 	apiClient             *pilatescomplete.APIClient
 	authenticationService *authentication.Service
 
 	timersGuard sync.RWMutex
-	timers      map[ID]*time.Timer
+	timers      map[string]*time.Timer
 }
 
 func NewScheduler(
-	db *badger.DB,
+	store *Store,
 	apiClient *pilatescomplete.APIClient,
 	authenticationService *authentication.Service,
 ) *Scheduler {
 	return &Scheduler{
-		db:                    db,
+		store:                 store,
 		apiClient:             apiClient,
 		authenticationService: authenticationService,
-		timers:                map[ID]*time.Timer{},
+		timers:                map[string]*time.Timer{},
 	}
 }
 
 // Init will load all pending jobs from database into memeory, and start watching them.
 func (s *Scheduler) Init(ctx context.Context) error {
-	jobs, err := s.listJobs(ctx)
+	jobs, err := s.store.ListJobs(ctx, ByStatus(JobStatusPending, JobStatusFailing, JobStatusRunning))
 	if err != nil {
 		return err
 	}
@@ -49,12 +46,38 @@ func (s *Scheduler) Init(ctx context.Context) error {
 	return nil
 }
 
+func (s *Scheduler) DeleteByID(ctx context.Context, id string) error {
+	token, ok := tokens.FromContext(ctx)
+	if !ok {
+		return fmt.Errorf("token missing from context")
+	}
+	job, err := s.store.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("find by id: %w", err)
+	}
+	if job.BookEvent.CredentialsID != token.CredentialsID {
+		return ErrNotFound
+	}
+	if err := s.store.DeleteJob(ctx, job.ID); err != nil {
+		return fmt.Errorf("delete job: %w", err)
+	}
+	s.deleteTimer(job)
+	log.Printf("[INFO] deleted job %q", job.ID)
+	return nil
+}
+
 func (s *Scheduler) Schedule(ctx context.Context, job *Job) error {
-	if err := s.insertJob(ctx, job); err != nil {
+	if err := s.store.InsertJob(ctx, job); err != nil {
 		return fmt.Errorf("failed to insert job: %w", err)
 	}
 	s.setupTimerForJob(job)
 	return nil
+}
+
+func (s *Scheduler) deleteTimer(job *Job) {
+	s.timersGuard.Lock()
+	delete(s.timers, job.ID)
+	s.timersGuard.Unlock()
 }
 
 func (s *Scheduler) setupTimerForJob(job *Job) {
@@ -76,7 +99,7 @@ func (s *Scheduler) runJob(job *Job) {
 	job.Status = JobStatusRunning
 	job.Attempts = append(job.Attempts, time.Now())
 
-	if err := s.insertJob(ctx, job); err != nil {
+	if err := s.store.InsertJob(ctx, job); err != nil {
 		log.Printf("[ERROR] failed update job %q: %s", job.ID, err)
 		return
 	}
@@ -95,7 +118,7 @@ func (s *Scheduler) runJob(job *Job) {
 		job.Errors = append(job.Errors, "")
 	}
 
-	if err := s.insertJob(ctx, job); err != nil {
+	if err := s.store.InsertJob(ctx, job); err != nil {
 		log.Printf("[ERROR] failed update job %q: %s", job.ID, err)
 		return
 	}
@@ -107,87 +130,4 @@ func nextRetry(job *Job) *time.Time {
 	}
 	next := job.Time.Add(100 * time.Millisecond * 2 << len(job.Attempts))
 	return &next
-}
-
-func (s *Scheduler) insertJob(_ context.Context, job *Job) error {
-	return s.db.Update(func(txn *badger.Txn) error {
-		data, err := json.Marshal(job)
-		if err != nil {
-			return err
-		}
-		if err := txn.Set(idKey(job.ID), data); err != nil {
-			return err
-		}
-
-		if job.BookEvent != nil {
-			if err := txn.Set(bookEventKey(job.BookEvent), data); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
-var ErrNotFound = errors.New("not found")
-
-func (s *Scheduler) FindBookEventJob(
-	ctx context.Context,
-	bookEvent BookEventJob,
-) (*Job, error) {
-	job := &Job{}
-	if err := s.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(bookEventKey(&bookEvent))
-		if err != nil {
-			return err
-		}
-		return item.Value(func(value []byte) error {
-			return json.Unmarshal(value, &bookEvent)
-		})
-	}); err != nil {
-		if errors.Is(err, badger.ErrKeyNotFound) {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	return job, nil
-}
-
-func (s *Scheduler) listJobs(_ context.Context) ([]*Job, error) {
-	var jobs []*Job
-	if err := s.db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
-		defer it.Close()
-		prefix := []byte("jobs/")
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			item := it.Item()
-			// only consider id keys 
-			if len(bytes.Split(item.Key(), []byte("/"))) == 3 {
-				continue
-			}
-			if err := item.Value(func(value []byte) error {
-				job := &Job{}
-				if err := json.Unmarshal(value, &job); err != nil {
-					return err
-				}
-				if job.Status != JobStatusSucceded {
-					jobs = append(jobs, job)
-				}
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return jobs, nil
-}
-
-func bookEventKey(bookEvent *BookEventJob) []byte {
-	return []byte(fmt.Sprintf("jobs/%s/%s", bookEvent.CredentialsID, bookEvent.EventID))
-}
-
-func idKey(id ID) []byte {
-	return []byte(fmt.Sprintf("jobs/%s", id))
 }

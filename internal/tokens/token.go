@@ -3,21 +3,13 @@ package tokens
 import (
 	"time"
 
-	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/pilatescomplete-bot/internal/credentials"
 	"github.com/pilatescomplete-bot/internal/keys"
 )
 
-type ID string
-
-func NewID() ID {
-	return ID(gonanoid.Must())
-}
-
 type Token struct {
-	CredentialsID credentials.ID `json:"credentials_id"`
-	Token         string         `json:"token"`
-	Expires       time.Time      `json:"time"`
+	CredentialsID string    `json:"credentials_id"`
+	Token         string    `json:"token"`
+	Expires       time.Time `json:"time"`
 }
 
 func (c Token) Encode(key *keys.Key) (*EncodedToken, error) {
@@ -33,9 +25,9 @@ func (c Token) Encode(key *keys.Key) (*EncodedToken, error) {
 }
 
 type EncodedToken struct {
-	CredentialsID credentials.ID `json:"credentials_id"`
-	Token         []byte         `json:"token"`
-	Expires       time.Time      `json:"time"`
+	CredentialsID string    `json:"credentials_id"`
+	Token         []byte    `json:"token"`
+	Expires       time.Time `json:"time"`
 }
 
 func (e EncodedToken) Decode(key *keys.Key) (*Token, error) {

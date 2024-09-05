@@ -7,17 +7,9 @@ import (
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/pilatescomplete-bot/internal/credentials"
-	"github.com/pilatescomplete-bot/internal/events"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
-
-type ID string
-
-func NewID() ID {
-	return ID(gonanoid.Must())
-}
 
 type JobStatus uint
 
@@ -30,7 +22,7 @@ const (
 )
 
 type Job struct {
-	ID       ID          `json:"id"`
+	ID       string      `json:"id"`
 	Time     time.Time   `json:"time"`
 	Status   JobStatus   `json:"status"`
 	Attempts []time.Time `json:"attempts"`
@@ -40,8 +32,8 @@ type Job struct {
 }
 
 type BookEventJob struct {
-	CredentialsID credentials.ID `json:"credentials_id"`
-	EventID       events.ID      `json:"events_id"`
+	EventID       string `json:"events_id"`
+	CredentialsID string `json:"credentials_id"`
 }
 
 func (j Job) Do(ctx context.Context, s *Scheduler) error {
@@ -64,7 +56,7 @@ func (j Job) Do(ctx context.Context, s *Scheduler) error {
 
 func NewBookEventJob(
 	ctx context.Context,
-	eventID events.ID,
+	eventID string,
 	ts time.Time,
 ) (*Job, error) {
 	token, ok := tokens.FromContext(ctx)
@@ -72,12 +64,12 @@ func NewBookEventJob(
 		return nil, fmt.Errorf("token missing from context")
 	}
 	return &Job{
-		ID:     NewID(),
+		ID:     gonanoid.Must(),
 		Status: JobStatusPending,
 		Time:   ts,
 		BookEvent: &BookEventJob{
-			CredentialsID: token.CredentialsID,
 			EventID:       eventID,
+			CredentialsID: token.CredentialsID,
 		},
 	}, nil
 }

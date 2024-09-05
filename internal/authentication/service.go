@@ -28,7 +28,7 @@ func NewService(
 	}
 }
 
-func (s *Service) AuthenticateContext(ctx context.Context, credentialsID credentials.ID) (context.Context, error) {
+func (s *Service) AuthenticateContext(ctx context.Context, credentialsID string) (context.Context, error) {
 	token, err := s.tokensStore.FindByID(ctx, credentialsID)
 	if errors.Is(err, tokens.ErrNotFound) {
 		creds, err := s.credentialsStore.FindByID(ctx, credentialsID)

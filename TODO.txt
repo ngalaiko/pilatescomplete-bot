@@ -1,8 +1,7 @@
-* display scheduled bookings
+* token validation
 * set secure cookie when https is terminated on the proxy (fly.io setup)
 * log to file
 * display errors in template
-* deploy
 * htmlx
 * caldev integration
 * csrf

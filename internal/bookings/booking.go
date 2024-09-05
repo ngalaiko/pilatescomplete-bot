@@ -6,8 +6,6 @@ import (
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 )
 
-type ID string
-
 type BookingStatus uint
 
 const (
@@ -15,13 +13,18 @@ const (
 	BookingStatusReserved
 	BookingStatusBooked
 	BookingStatusChecked
+	BookingStatusJobScheduled
 )
 
 type Booking struct {
-	ID     ID
+	ID     string
 	Status BookingStatus
 	// Position conains position in a queue if status is Reserved
 	Position int64
+}
+
+func (b Booking) IsJobScheduled() bool {
+	return b.Status == BookingStatusJobScheduled
 }
 
 func (b Booking) IsBooked() bool {
@@ -38,7 +41,7 @@ func FromAPI(booking pilatescomplete.ActivityBooking) (*Booking, error) {
 		return nil, err
 	}
 	return &Booking{
-		ID:       ID(booking.BookingID),
+		ID:       booking.BookingID,
 		Status:   status,
 		Position: booking.Position.Int64(),
 	}, nil

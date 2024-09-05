@@ -3,12 +3,10 @@ package device
 import (
 	"net/http"
 	"time"
-
-	"github.com/pilatescomplete-bot/internal/credentials"
 )
 
 type Device struct {
-	CredentialsID credentials.ID
+	CredentialsID string
 }
 
 func FromCookies(cookies []*http.Cookie) (*Device, bool) {
@@ -16,7 +14,7 @@ func FromCookies(cookies []*http.Cookie) (*Device, bool) {
 	for _, cookie := range cookies {
 		switch cookie.Name {
 		case "credentials_id":
-			d.CredentialsID = credentials.ID(cookie.Value)
+			d.CredentialsID = cookie.Value
 		}
 	}
 	if len(d.CredentialsID) == 0 {
