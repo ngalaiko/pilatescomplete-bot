@@ -11,7 +11,7 @@ import (
 )
 
 type Service struct {
-	tokensStore            *tokens.Store
+	tokensStore      *tokens.Store
 	credentialsStore *credentials.Store
 	apiClient        *pilatescomplete.APIClient
 }
@@ -22,7 +22,7 @@ func NewService(
 	apiClient *pilatescomplete.APIClient,
 ) *Service {
 	return &Service{
-		tokensStore:            tokensStore,
+		tokensStore:      tokensStore,
 		credentialsStore: credentialsStore,
 		apiClient:        apiClient,
 	}
@@ -54,7 +54,7 @@ func (s *Service) AuthenticateContext(ctx context.Context, credentialsID credent
 			return ctx, fmt.Errorf("insert token: %w", err)
 		}
 	} else if err != nil {
-		return ctx, fmt.Errorf("find token by credentialsID %q: %w")
+		return ctx, fmt.Errorf("find token by credentialsID %q: %w", credentialsID, err)
 	}
 	return tokens.NewContext(ctx, token), nil
 }

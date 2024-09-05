@@ -26,15 +26,14 @@ func Handler(
 	scheduler *jobs.Scheduler,
 	authenticationService *authentication.Service,
 ) http.HandlerFunc {
+	requireAuth := WithAuthentication(authenticationService, credentialsStore)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", handleListEvents(renderer, apiClient))
+	mux.HandleFunc("GET /", requireAuth(handleListEvents(renderer, apiClient)))
+	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
 	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
-	mux.HandleFunc("POST /events/{event_id}/bookings", handleCreateBooking(apiClient, scheduler))
-	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", handleDeleteBooking(apiClient))
-	return WithMiddlewares(
-		WithAuthentication(credentialsStore),
-		WithToken(authenticationService),
-	)(mux.ServeHTTP)
+	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(apiClient, scheduler)))
+	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(apiClient)))
+	return mux.ServeHTTP
 }
 
 func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc {
@@ -118,20 +117,12 @@ func handleListEvents(
 		}
 		return t
 	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, isAuthenticated := tokens.FromContext(r.Context())
-		if !isAuthenticated {
-			handleAuthenticationPage(renderer)(w, r)
-			return
-		}
-
 		from := parseDateOrNow(r.URL.Query().Get("from"))
 		to := parseDateOrNow(r.URL.Query().Get("to"))
 		if to.Before(from) {
 			to = from
 		}
-
 		apiResponse, err := client.ListEvents(r.Context(), pilatescomplete.ListEventsInput{
 			From: &from,
 			To:   &to,

@@ -23,41 +23,20 @@ func WithMiddlewares(middlewares ...Middleware) Middleware {
 	}
 }
 
-func WithToken(authenticationService *authentication.Service) Middleware {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			dvc, ok := device.FromContext(r.Context())
-			if !ok {
-				next(w, r)
-				return
-			}
-
-			ctx, err := authenticationService.AuthenticateContext(r.Context(), dvc.CredentialsID)
-			if errors.Is(err, credentials.ErrNotFound) {
-				next(w, r)
-				return
-			} else if err != nil {
-				log.Printf("[ERROR] find token: %s", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			next(w, r.WithContext(ctx))
-		}
-	}
-}
-
-func WithAuthentication(credentialsStore *credentials.Store) Middleware {
+func WithAuthentication(
+	authenticationService *authentication.Service,
+	credentialsStore *credentials.Store,
+) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			dvc, ok := device.FromCookies(r.Cookies())
 			if !ok {
-				next(w, r)
+				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			}
 
 			if _, err := credentialsStore.FindByID(r.Context(), dvc.CredentialsID); errors.Is(err, credentials.ErrNotFound) {
-				next(w, r)
+				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			} else if err != nil {
 				log.Printf("[ERROR] find credentials: %s", err)
@@ -69,7 +48,15 @@ func WithAuthentication(credentialsStore *credentials.Store) Middleware {
 					w.Header().Add("Set-Cookie", cookie.String())
 				}
 			}
-			next(w, r)
+
+			ctx, err := authenticationService.AuthenticateContext(r.Context(), dvc.CredentialsID)
+			if err != nil {
+				log.Printf("[ERROR] find token: %s", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			next(w, r.WithContext(ctx))
 		}
 	}
 }
