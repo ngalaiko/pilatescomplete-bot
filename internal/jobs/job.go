@@ -11,20 +11,20 @@ import (
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
-type JobStatus uint
+type Status uint
 
 const (
-	JobStatusUndefined = iota
-	JobStatusPending
-	JobStatusRunning
-	JobStatusSucceded
-	JobStatusFailing
+	StatusUndefined = iota
+	StatusPending
+	StatusRunning
+	StatusSucceded
+	StatusFailing
 )
 
 type Job struct {
 	ID       string      `json:"id"`
 	Time     time.Time   `json:"time"`
-	Status   JobStatus   `json:"status"`
+	Status   Status      `json:"status"`
 	Attempts []time.Time `json:"attempts"`
 	Errors   []string    `json:"errors"`
 
@@ -38,7 +38,7 @@ type BookEventJob struct {
 
 func (j Job) Do(ctx context.Context, s *Scheduler) error {
 	if j.BookEvent != nil {
-		ctx, err := s.authenticationService.AuthenticateContext(ctx, j.BookEvent.CredentialsID)
+		_, err := s.authenticationService.AuthenticateContext(ctx, j.BookEvent.CredentialsID)
 		if err != nil {
 			return fmt.Errorf("authenticate context: %w", err)
 		}
@@ -65,7 +65,7 @@ func NewBookEventJob(
 	}
 	return &Job{
 		ID:     gonanoid.Must(),
-		Status: JobStatusPending,
+		Status: StatusPending,
 		Time:   ts,
 		BookEvent: &BookEventJob{
 			EventID:       eventID,

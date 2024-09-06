@@ -51,8 +51,8 @@ func BookEventsByCredentialsIDEventIDs(credentialsID string, eventIDs ...string)
 	}
 }
 
-func ByStatus(status ...JobStatus) func(*Job) bool {
-	filter := make(map[JobStatus]bool, len(status))
+func ByStatus(status ...Status) func(*Job) bool {
+	filter := make(map[Status]bool, len(status))
 	for _, s := range status {
 		filter[s] = true
 	}

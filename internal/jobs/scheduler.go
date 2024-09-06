@@ -17,8 +17,8 @@ type Scheduler struct {
 	apiClient             *pilatescomplete.APIClient
 	authenticationService *authentication.Service
 
-	timersGuard sync.RWMutex
-	timers      map[string]*time.Timer
+	jobsGuard sync.RWMutex
+	jobs      map[string]*Job
 }
 
 func NewScheduler(
@@ -30,19 +30,43 @@ func NewScheduler(
 		store:                 store,
 		apiClient:             apiClient,
 		authenticationService: authenticationService,
-		timers:                map[string]*time.Timer{},
+		jobs:                  make(map[string]*Job),
 	}
 }
 
 // Init will load all pending jobs from database into memeory, and start watching them.
 func (s *Scheduler) Init(ctx context.Context) error {
-	jobs, err := s.store.ListJobs(ctx, ByStatus(JobStatusPending, JobStatusFailing, JobStatusRunning))
+	jobs, err := s.store.ListJobs(ctx, ByStatus(StatusPending, StatusFailing, StatusRunning))
 	if err != nil {
 		return err
 	}
 	for _, job := range jobs {
 		s.setupTimerForJob(job)
 	}
+
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				jobsToRun := []*Job{}
+				s.jobsGuard.RLock()
+				for _, job := range s.jobs {
+					if time.Now().After(job.Time) {
+						jobsToRun = append(jobsToRun, job)
+					}
+				}
+				s.jobsGuard.RUnlock()
+
+				for _, job := range jobsToRun {
+					s.runJob(job)
+				}
+			}
+		}
+	}()
+
 	return nil
 }
 
@@ -75,19 +99,17 @@ func (s *Scheduler) Schedule(ctx context.Context, job *Job) error {
 }
 
 func (s *Scheduler) deleteTimer(job *Job) {
-	s.timersGuard.Lock()
-	delete(s.timers, job.ID)
-	s.timersGuard.Unlock()
+	s.jobsGuard.Lock()
+	delete(s.jobs, job.ID)
+	s.jobsGuard.Unlock()
+	log.Printf("[INFO] removed job %q  from scheduled", job.ID)
 }
 
 func (s *Scheduler) setupTimerForJob(job *Job) {
-	duration := time.Until(job.Time)
+	s.jobsGuard.Lock()
+	s.jobs[job.ID] = job
+	s.jobsGuard.Unlock()
 	log.Printf("[INFO] scheduled job %q to run at %s", job.ID, job.Time)
-	s.timersGuard.Lock()
-	s.timers[job.ID] = time.AfterFunc(duration, func() {
-		s.runJob(job)
-	})
-	s.timersGuard.Unlock()
 }
 
 func (s *Scheduler) runJob(job *Job) {
@@ -96,7 +118,7 @@ func (s *Scheduler) runJob(job *Job) {
 
 	log.Printf("[INFO] starting job %q", job.ID)
 
-	job.Status = JobStatusRunning
+	job.Status = StatusRunning
 	job.Attempts = append(job.Attempts, time.Now())
 
 	if err := s.store.InsertJob(ctx, job); err != nil {
@@ -107,15 +129,15 @@ func (s *Scheduler) runJob(job *Job) {
 	if err := job.Do(ctx, s); err != nil {
 		log.Printf("[ERROR] job %q failed: %s", job.ID, err)
 		job.Errors = append(job.Errors, err.Error())
-		job.Status = JobStatusFailing
+		job.Status = StatusFailing
 		if next := nextRetry(job); next != nil {
 			job.Time = *next
-			s.setupTimerForJob(job)
 		}
 	} else {
 		log.Printf("[INFO] job %q succeeded", job.ID)
-		job.Status = JobStatusSucceded
+		job.Status = StatusSucceded
 		job.Errors = append(job.Errors, "")
+		s.deleteTimer(job)
 	}
 
 	if err := s.store.InsertJob(ctx, job); err != nil {
