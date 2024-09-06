@@ -58,6 +58,9 @@ func (s *Service) ListEvents(ctx context.Context, input ListEventsInput) ([]*Eve
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	for _, job := range bookingJobs {
+		if job.Status == jobs.StatusSucceded {
+			continue
+		}
 		eventsByID[job.BookEvent.EventID].Booking = &bookings.Booking{
 			ID:     job.ID,
 			Status: bookings.BookingStatusJobScheduled,
