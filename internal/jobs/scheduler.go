@@ -108,13 +108,13 @@ func (s *Scheduler) runJob(job *Job) {
 		log.Printf("[ERROR] job %q failed: %s", job.ID, err)
 		job.Errors = append(job.Errors, err.Error())
 		job.Status = JobStatusFailing
-		job.Status = JobStatusSucceded
 		if next := nextRetry(job); next != nil {
 			job.Time = *next
 			s.setupTimerForJob(job)
 		}
 	} else {
 		log.Printf("[INFO] job %q succeeded", job.ID)
+		job.Status = JobStatusSucceded
 		job.Errors = append(job.Errors, "")
 	}
 
