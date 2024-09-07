@@ -44,7 +44,7 @@ func WithAuthentication(
 				return
 			} else {
 				r = r.WithContext(device.NewContext(r.Context(), dvc))
-				for _, cookie := range dvc.ToCookies(r.TLS != nil) {
+				for _, cookie := range dvc.ToCookies(r.Header.Get("X-Forwarded-Proto") == "https") {
 					w.Header().Add("Set-Cookie", cookie.String())
 				}
 			}
