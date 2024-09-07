@@ -53,6 +53,10 @@ func (e Event) Reservable() bool {
 	return e.ReservesTaken < e.ReservesTotal
 }
 
+func (e Event) FullyBooked() bool {
+	return !e.Reservable() && !e.Bookable()
+}
+
 var (
 	minute = time.Second * 60
 	hour   = minute * 60
