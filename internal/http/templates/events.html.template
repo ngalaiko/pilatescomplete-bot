@@ -3,129 +3,124 @@
 {{ define "datetime" }}<time datetime="{{ .Format "2006-01-02T15:04:05Z07:00" }}">{{ .Format "Monday 02 Jan 15:04"  }}</time> {{ end }}
 
 {{ define "main" }}
-<header>
-	<form method="GET" action="/">
-		<label for="from">From</label>
-		<input type="date" id="from" name="from" value="{{ .From.Format "2006-01-02" }}" />
+<div style="height: 100%; display: flex; flex-direction: column;">
+	<header style="padding: 1em;">
+		<form method="GET" action="/">
+			<label for="from">From</label>
+			<input type="date" id="from" name="from" value="{{ .From.Format "2006-01-02" }}" />
 
-		<label for="to">To</label>
-		<input type="date" id="to" name="to" value="{{ .To.Format "2006-01-02" }}"  />
+			<label for="to">To</label>
+			<input type="date" id="to" name="to" value="{{ .To.Format "2006-01-02" }}"  />
 
-		<input type="submit" value="Go" />
-	</form>
-</header>
+			<input type="submit" value="Go" />
+		</form>
+	</header>
 
-{{ $day := -1 }}
+	{{ $day := -1 }}
 
-<div style="max-width: 32em; padding: 0 1em;">
-	<ul style="padding: 0;">
-	{{ if len .Events | ne 0 }}
-		{{ $day = (index .Events 0).StartTime.Day }}
-		<header>
-			{{ template "date" (index .Events 0).StartTime }}
-		</header>
-	{{ end }}
-
-	{{- range .Events }}
-
-		{{ if ne $day .StartTime.Day }}
-			</ul>
-			<ul style="padding: 0;">
-			<header>
-				{{ template "date" .StartTime }}
+	<ul style="padding: 0 1em; overflow-y: scroll; position: relative;">
+		{{ if len .Events | ne 0 }}
+			{{ $day = (index .Events 0).StartTime.Day }}
+			<header style="position: sticky; top: 0; background: white;">
+				{{ template "date" (index .Events 0).StartTime }}
 			</header>
 		{{ end }}
 
-		<li style="
-			{{ if .Booking }}
-				border-left: 3px solid {{ .Color }};
-				{{ if .Booking.IsBooked }}
-					background: {{ .Color }};
-				{{ else }}
-					background: repeating-linear-gradient(
-						135deg,
-						{{ .Color }}30,
-						{{ .Color }}30 0.5em,
-						{{ .Color }}60 0.5em,
-						{{ .Color }}60 1.0em 
-					  );
-				{{ end }}
-			{{ else if .FullyBooked }}
-					border-left: 3px solid rgba(100, 100, 100, 1);
-					background: rgba(100, 100, 100, 0.3);
-			{{ else }}
-					border-left: 3px solid {{ .Color }};
-					background: {{ .Color }}30;
+		{{- range .Events }}
+
+			{{ if ne $day .StartTime.Day }}
+				<header style="position: sticky; top: 0; background: white;">
+					{{ template "date" .StartTime }}
+				</header>
 			{{ end }}
 
-			margin: 1em 0 0 0; 
-			
-			display: flex;
-			flex-direction: column;
-			gap: 0.5em;
+			<li style="
+				max-width: 32em;
+				
+				display: flex;
+				flex-direction: column;
+				gap: 0.5em;
 
-			padding: 0.25em 0.5em;
-			
-			{{ if and (not .Booking) .FullyBooked }}
-			opacity: 0.6;
-			{{ end}}
-			"
-		>
-			<div style="display: flex; justify-content: space-between;">
-				<div>
-					<header>{{ .DisplayName }} | {{ .LocationDisplayName }}</header>
-					<caption>{{ .DisplayNotice }}</caption>
-				</div>
+				margin: 1em 0 0 1em; 
+				padding: 0.25em 0.5em;
 
-				<div style="display: flex; flex-direction: column;">
-					{{ template "time" .StartTime }}
-					{{ template "time" .EndTime }}
-				</div>
-			</div>
-
-			<div style="display: flex; gap: 0.5em;">
 				{{ if .Booking }}
-					{{ if .Booking.IsReserved }}
-						<span>Reserved  <b>#{{ .Booking.Position }}</b></span>
-					{{ else if .Booking.IsBooked}}
-						<span>Booked</span>
+					border-left: 3px solid {{ .Color }};
+					{{ if .Booking.IsBooked }}
+						background: {{ .Color }};
 					{{ else }}
-						<span>Scheduled</span>
+						background: repeating-linear-gradient(
+							135deg,
+							{{ .Color }}30,
+							{{ .Color }}30 0.5em,
+							{{ .Color }}60 0.5em,
+							{{ .Color }}60 1.0em 
+						  );
 					{{ end }}
 				{{ else if .FullyBooked }}
-					<span>Fully Booked</span>
+						border-left: 3px solid rgba(100, 100, 100, 1);
+						background: rgba(100, 100, 100, 0.3);
+				{{ else }}
+						border-left: 3px solid {{ .Color }};
+						background: {{ .Color }}30;
 				{{ end }}
-			
+				"
+			>
+				<div style="display: flex; justify-content: space-between;">
+					<div>
+						<header>{{ .DisplayName }} | {{ .LocationDisplayName }}</header>
+						<caption>{{ .DisplayNotice }}</caption>
+					</div>
 
-				{{ if .Booking }}
-					<form 
+					<div style="display: flex; flex-direction: column;">
+						{{ template "time" .StartTime }}
+						{{ template "time" .EndTime }}
+					</div>
+				</div>
+
+				<div style="display: flex; gap: 0.5em;">
+					{{ if .Booking }}
 						{{ if .Booking.IsReserved }}
-						method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
-						onsubmit="return confirm('Are you sure you want to cancel booking?');"
-						{{ else if .Booking.IsBooked }}
-						method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
-						onsubmit="return confirm('Are you sure you want to cancel reservation?');"
-						{{ else if .Booking.IsJobScheduled }}
-						method="POST" action="/jobs/{{ .Booking.ID }}?delete=true" 
-						onsubmit="return confirm('Are you sure you want to cancel job?');"
+							<span>Reserved  <b>#{{ .Booking.Position }}</b></span>
+						{{ else if .Booking.IsBooked}}
+							<span>Booked</span>
+						{{ else }}
+							<span>Scheduled</span>
 						{{ end }}
-					>
-						<input type="submit" value="Cancel" />
-					</form>
-				{{ else if not .FullyBooked }}
-					<form method="POST" action="/events/{{ .ID }}/bookings">
-						<input type="text" name="bookable_from" value="{{ .BookableFrom.Format "2006-01-02T15:04:05Z07:00" }}" hidden />
-						{{ if  .Bookable }}
-						<input type="submit" value="Book" />
-						{{ else if .Reservable }}
-						<input type="submit" value="Reserve" />
-						{{ end }}
-					</FORM>
-				{{ end }}
-			</div>
-		</li>
-		{{ $day = .StartTime.Day }}
-	{{- end }}
+					{{ else if .FullyBooked }}
+						<span>Fully Booked</span>
+					{{ end }}
+				
+
+					{{ if .Booking }}
+						<form 
+							{{ if .Booking.IsReserved }}
+							method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
+							onsubmit="return confirm('Are you sure you want to cancel booking?');"
+							{{ else if .Booking.IsBooked }}
+							method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
+							onsubmit="return confirm('Are you sure you want to cancel reservation?');"
+							{{ else if .Booking.IsJobScheduled }}
+							method="POST" action="/jobs/{{ .Booking.ID }}?delete=true" 
+							onsubmit="return confirm('Are you sure you want to cancel job?');"
+							{{ end }}
+						>
+							<input type="submit" value="Cancel" />
+						</form>
+					{{ else if not .FullyBooked }}
+						<form method="POST" action="/events/{{ .ID }}/bookings">
+							<input type="text" name="bookable_from" value="{{ .BookableFrom.Format "2006-01-02T15:04:05Z07:00" }}" hidden />
+							{{ if  .Bookable }}
+							<input type="submit" value="Book" />
+							{{ else if .Reservable }}
+							<input type="submit" value="Reserve" />
+							{{ end }}
+						</FORM>
+					{{ end }}
+				</div>
+			</li>
+			{{ $day = .StartTime.Day }}
+		{{- end }}
 	</ul>
 </div>
 {{- end }}
