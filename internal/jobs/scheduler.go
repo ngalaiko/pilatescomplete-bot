@@ -116,10 +116,10 @@ func (s *Scheduler) runJob(job *Job) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	log.Printf("[INFO] starting job %q", job.ID)
-
 	job.Status = StatusRunning
 	job.Attempts = append(job.Attempts, time.Now())
+
+	log.Printf("[INFO] starting job %q, attempt %d", job.ID, len(job.Attempts))
 
 	if err := s.store.InsertJob(ctx, job); err != nil {
 		log.Printf("[ERROR] failed update job %q: %s", job.ID, err)
@@ -132,6 +132,8 @@ func (s *Scheduler) runJob(job *Job) {
 		job.Status = StatusFailing
 		if next := nextRetry(job); next != nil {
 			job.Time = *next
+		} else {
+			s.deleteTimer(job)
 		}
 	} else {
 		log.Printf("[INFO] job %q succeeded", job.ID)

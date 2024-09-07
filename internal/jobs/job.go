@@ -38,7 +38,7 @@ type BookEventJob struct {
 
 func (j Job) Do(ctx context.Context, s *Scheduler) error {
 	if j.BookEvent != nil {
-		_, err := s.authenticationService.AuthenticateContext(ctx, j.BookEvent.CredentialsID)
+		ctx, err := s.authenticationService.AuthenticateContext(ctx, j.BookEvent.CredentialsID)
 		if err != nil {
 			return fmt.Errorf("authenticate context: %w", err)
 		}
