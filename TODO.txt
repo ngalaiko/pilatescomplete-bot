@@ -1,4 +1,3 @@
-* use https://github.com/go-co-op/gocron
 * validate cookie with api
 * set secure cookie when https is terminated on the proxy (fly.io setup)
 * log to file
