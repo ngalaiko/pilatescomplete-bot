@@ -1,5 +1,5 @@
+* render a calendar to select dates
 * validate cookie with api
-* log to file
 * display errors in template
 * htmlx
 * caldev integration
