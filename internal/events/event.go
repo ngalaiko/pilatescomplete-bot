@@ -33,6 +33,7 @@ type Event struct {
 	BookableFrom time.Time
 	// Booking contains an active booking for the event
 	Booking *bookings.Booking
+	Color   string
 
 	PlacesTotal   int64
 	PlacesTaken   int64
@@ -87,6 +88,7 @@ func EventFromAPI(event pilatescomplete.Event) (*Event, error) {
 		ReservesTotal:       event.Activity.Reserves.Int64(),
 		ReservesTaken:       event.Activity.BookingReservesCount.Int64(),
 		BookableFrom:        calculateBookableFrom(&event),
+		Color:               event.ActivityType.ColorNew,
 	}, nil
 }
 

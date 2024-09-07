@@ -102,6 +102,13 @@ var functions = map[string]interface{}{
 	"now":        time.Now,
 	"startOfDay": func(ts time.Time) time.Time { return ts.Round(day) },
 	"plusHours":  func(hours int, ts time.Time) time.Time { return ts.Add(time.Duration(hours) * hour) },
+	"count": func(n int) []int {
+		c := make([]int, n)
+		for i := 0; i < n; i++ {
+			c[i] = i
+		}
+		return c
+	},
 }
 
 func NewEmbedTemplates() *EmbedTemplates {

@@ -8,6 +8,7 @@
 	ul {
 		list-style-type: none;
 		position: relative;
+		font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica,  arial, sans-serif;
 	}
 
 	li {
@@ -23,124 +24,37 @@
 
 	article {
 		position: absolute;
-		z-index: 10;
 
 		background: gray;
+		opacity: 0.7;
 
-		margin: 0 0 0 2rem;
-		padding: 1rem 0;
+		left: 4.5em;
+		right: 0;
 	}
 </style>
 
 <ul>
-	<li>
-		{{ template "hour" (.Time | plusHours 0) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 1) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 2) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 3) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 4) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 5) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 6) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 7) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 8) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 9) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 10) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 11) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 12) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 13) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 14) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 15) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 16) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 17) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 18) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 19) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 20) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 21) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 22) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 23) }}
-		<hr />
-	</li>
-	<li>
-		{{ template "hour" (.Time | plusHours 24) }}
-		<hr />
-	</li>
-
 	{{ range .Events }}
 	<article style="
+		background: {{ .Color }}60;
+		border-left: 3px solid {{ .Color }};
 		top: calc(5em / 2 + 5em / 60 / 60 * {{ ($.Time | .StartTime.Sub).Seconds }});
 		height: calc(5em / 60 / 60 * {{ .Duration.Seconds }});"
 	>
-		{{ .DisplayName }} {{ .Duration.Seconds }}
+		{{ template "time" .StartTime }}
+
+		<header>
+			<b>{{ .DisplayName }}</b> | <span>{{ .LocationDisplayName }}</span>
+		<header>
+
+		{{ .DisplayNotice }}
 	</article>
+	{{ end }}
+	{{ range count 24 }}
+	<li>
+		{{ template "hour" ($.Time | plusHours .) }}
+		<hr />
+	</li>
 	{{ end }}
 <ul>
 {{- end }}
