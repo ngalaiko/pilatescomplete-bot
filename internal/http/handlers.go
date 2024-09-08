@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -72,7 +73,13 @@ func handleCreateCalendar(calendarsService *calendars.Service) http.HandlerFunc 
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		http.Redirect(w, r, fmt.Sprintf("webcal://localhost/calendars/%s/pilatescomplete.ics", cal.ID), http.StatusFound)
+		origin, err := url.Parse(r.Header.Get("Origin"))
+		if err != nil {
+			log.Printf("[ERROR] parse origin: %s", err)
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("webcal://%s/calendars/%s/pilatescomplete.ics", origin.Host, cal.ID), http.StatusFound)
 	}
 }
 
