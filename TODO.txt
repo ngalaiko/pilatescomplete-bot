@@ -1,6 +1,6 @@
-* validate cookie with api
-* display errors in template
-* htmlx
 * caldev integration
+* htmlx
+* display errors in template
+* validate cookie with api
 * csrf
 * drop curl dependency
