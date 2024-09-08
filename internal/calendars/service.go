@@ -9,6 +9,7 @@ import (
 	ics "github.com/arran4/golang-ical"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pilatescomplete-bot/internal/authentication"
+	"github.com/pilatescomplete-bot/internal/bookings"
 	"github.com/pilatescomplete-bot/internal/devices"
 	"github.com/pilatescomplete-bot/internal/events"
 )
@@ -64,6 +65,9 @@ func (s *Service) WriteICal(ctx context.Context, w io.Writer, id string) error {
 	icalendar.SetName("Pilates complete")
 	for _, event := range events {
 		if event.Booking == nil {
+			continue
+		}
+		if event.Booking.Status != bookings.BookingStatusBooked {
 			continue
 		}
 		ievent := icalendar.AddEvent(event.Booking.ID)
