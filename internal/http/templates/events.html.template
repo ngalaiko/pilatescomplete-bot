@@ -3,124 +3,211 @@
 {{ define "datetime" }}<time datetime="{{ .Format "2006-01-02T15:04:05Z07:00" }}">{{ .Format "Monday 02 Jan 15:04"  }}</time> {{ end }}
 
 {{ define "main" }}
-<div style="height: 100%; display: flex; flex-direction: column;">
-	<header style="padding: 1em;">
-		<form method="GET" action="/">
-			<label for="from">From</label>
-			<input type="date" id="from" name="from" value="{{ .From.Format "2006-01-02" }}" />
 
-			<label for="to">To</label>
-			<input type="date" id="to" name="to" value="{{ .To.Format "2006-01-02" }}"  />
+<style>
+	body {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		margin: 0;
+		padding: 0;
+		background-color: #f2f2f7;
+		color: #1c1c1e;
+	}
+	.calendar {
+		display: flex;
+		flex-direction: column;
+		max-width: 100%;
+		margin: 0 auto;
+	}
+	.day {
+		border-bottom: 1px solid #c6c6c8;
+		padding: 10px 0;
+	}
+	.day-header {
+		font-size: 17px;
+		font-weight: bold;
+		color: #1c1c1e;
+		padding: 0 15px;
+		margin-bottom: 10px;
+		position: sticky;
+		top: 0;
+		background-color: rgba(242, 242, 247, 0.9);
+		z-index: 1;
+	}
+	.events {
+		display: flex;
+		flex-direction: column;
+	}
+	.event {
+		display: flex;
+		flex-wrap: wrap;
+		padding: 5px 15px;
+		border-left: 2px solid;
+		margin-left: 60px;
+		position: relative;
+	}
+	.event::before {
+		content: attr(data-time);
+		position: absolute;
+		left: -65px;
+		top: 5px;
+		font-size: 12px;
+		color: #8e8e93;
+		width: 55px;
+		text-align: right;
+	}
+	.event-details {
+		flex: 1 1 200px;
+		min-width: 0;
+	}
+	.event-name {
+		font-size: 15px;
+		font-weight: 500;
+		margin: 0 0 2px 0;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.event-location {
+		font-size: 13px;
+		color: #8e8e93;
+		margin: 0;
+	}
+	.event-description {
+		font-size: 13px;
+		color: #8e8e93;
+		margin: 2px 0 0 0;
+	}
+	.event-action {
+		flex: 0 0 auto;
+		align-self: center;
+		margin-left: auto;
+		margin-top: 5px;
+	}
+	.event-action input[type="submit"] {
+		padding: 4px 8px;
+		border: none;
+		border-radius: 4px;
+		font-size: 12px;
+		font-weight: 500;
+		cursor: pointer;
+		color: white;
+		width: 100px;
+		text-align: center;
+	}
+	.available { border-left-color: #34c759; }
+	.available .event-action input[type="submit"] { background-color: #34c759; }
+	.reservable { border-left-color: #ff9500; }
+	.reservable .event-action input[type="submit"] { background-color: #ff9500; }
+	.reserved { border-left-color: #5856d6; }
+	.reserved .event-action input[type="submit"] { background-color: #5856d6; }
+	.booked { border-left-color: #007aff; }
+	.booked .event-action input[type="submit"] { background-color: #007aff; }
+	.unavailable { border-left-color: #ff3b30; }
+	.unavailable .event-action input[type="submit"] { background-color: #ff3b30; }
+	.future-booking { border-left-color: #64d2ff; }
+	.future-booking .event-action input[type="submit"] { background-color: #64d2ff; }
 
-			<input type="submit" value="Go" />
-		</form>
-	</header>
+	@media (min-width: 768px) {
+		.calendar {
+			max-width: 800px;
+			padding: 0 20px;
+		}
+		.event {
+			flex-wrap: nowrap;
+		}
+		.event-action {
+			margin-top: 0;
+		}
+		.event-details {
+			flex: 1 1 auto;
+			padding-right: 20px;
+		}
+	}
+</style>
 
+<main class="calendar">
 	{{ $day := -1 }}
 
-	<ul style="padding: 0 1em; overflow-y: scroll; position: relative;">
-		{{ if len .Events | ne 0 }}
-			{{ $day = (index .Events 0).StartTime.Day }}
-			<header style="position: sticky; top: 0; background: white;">
-				{{ template "date" (index .Events 0).StartTime }}
-			</header>
+	{{ if len .Events | ne 0 }}
+	<section class="day">
+		<header class="day-header">{{ (index .Events 0).StartTime.Format "Monday 2 January"  }}</header>
+		<div class="events">
+		{{ $day = (index .Events 0).StartTime.Day }}
+	{{ end }}
+
+	{{- range .Events }}
+		{{ if ne $day .StartTime.Day }}
+		</div>
+	</section>
+	<section class="day">
+		<header class="day-header">{{ .StartTime.Format "Monday 2 January"  }}</header>
+		<div class="events">
 		{{ end }}
-
-		{{- range .Events }}
-
-			{{ if ne $day .StartTime.Day }}
-				<header style="position: sticky; top: 0; background: white;">
-					{{ template "date" .StartTime }}
-				</header>
-			{{ end }}
-
-			<li style="
-				max-width: 32em;
-				
-				display: flex;
-				flex-direction: column;
-				gap: 0.5em;
-
-				margin: 1em 0 0 1em; 
-				padding: 0.25em 0.5em;
-
-				{{ if .Booking }}
-					border-left: 3px solid {{ .Color }};
-					{{ if .Booking.IsBooked }}
-						background: {{ .Color }};
-					{{ else }}
-						background: repeating-linear-gradient(
-							135deg,
-							{{ .Color }}30,
-							{{ .Color }}30 0.5em,
-							{{ .Color }}60 0.5em,
-							{{ .Color }}60 1.0em 
-						  );
-					{{ end }}
+			<article class="event 
+				{{ if and .Booking .Booking.IsBooked  }}
+					booked
+				{{ else if or (and .Booking .Booking.IsReserved) (and .Booking .Booking.IsJobScheduled) }}
+					reserved
 				{{ else if .FullyBooked }}
-						border-left: 3px solid rgba(100, 100, 100, 1);
-						background: rgba(100, 100, 100, 0.3);
-				{{ else }}
-						border-left: 3px solid {{ .Color }};
-						background: {{ .Color }}30;
+					unavailable
+				{{ else  if  .Bookable }}
+					available
+				{{ else if .Reservable }}
+					reservable
 				{{ end }}
-				"
-			>
-				<div style="display: flex; justify-content: space-between;">
-					<div>
-						<header>{{ .DisplayName }} | {{ .LocationDisplayName }}</header>
-						<caption>{{ .DisplayNotice }}</caption>
-					</div>
-
-					<div style="display: flex; flex-direction: column;">
-						{{ template "time" .StartTime }}
-						{{ template "time" .EndTime }}
-					</div>
+			" data-time="{{ .StartTime.Format "15:04" }}">
+				<div class="event-details">
+					<h2 class="event-name">{{ .DisplayName }}</h3>
+					<p class="event-location">{{ .LocationDisplayName }}</p>
+					{{ with .DisplayNotice }}
+					<p class="event-description">{{ . }}</p>
+					{{ end }}
 				</div>
 
-				<div style="display: flex; gap: 0.5em;">
-					{{ if .Booking }}
-						{{ if .Booking.IsReserved }}
-							<span>Reserved  <b>#{{ .Booking.Position }}</b></span>
-						{{ else if .Booking.IsBooked}}
-							<span>Booked</span>
-						{{ else }}
-							<span>Scheduled</span>
-						{{ end }}
-					{{ else if .FullyBooked }}
-						<span>Fully Booked</span>
-					{{ end }}
-				
-
-					{{ if .Booking }}
-						<form 
-							{{ if .Booking.IsReserved }}
-							method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
-							onsubmit="return confirm('Are you sure you want to cancel booking?');"
-							{{ else if .Booking.IsBooked }}
-							method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
-							onsubmit="return confirm('Are you sure you want to cancel reservation?');"
-							{{ else if .Booking.IsJobScheduled }}
-							method="POST" action="/jobs/{{ .Booking.ID }}?delete=true" 
-							onsubmit="return confirm('Are you sure you want to cancel job?');"
-							{{ end }}
-						>
-							<input type="submit" value="Cancel" />
-						</form>
-					{{ else if not .FullyBooked }}
-						<form method="POST" action="/events/{{ .ID }}/bookings">
-							<input type="text" name="bookable_from" value="{{ .BookableFrom.Format "2006-01-02T15:04:05Z07:00" }}" hidden />
-							{{ if  .Bookable }}
+				{{ if and .Booking .Booking.IsBooked }}
+					<form 
+						class="event-action" 
+						method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
+						onsubmit="return confirm('Are you sure you want to cancel booking?');"
+					>
+						<input type="submit" value="Booked" />
+					</form>
+				{{ else if and .Booking .Booking.IsReserved }}
+					<form 
+						class="event-action"
+						method="POST" action="/events/{{ .ID }}/bookings/{{ .Booking.ID }}?delete=true" 
+						onsubmit="return confirm('Are you sure you want to cancel reservation?');"
+					>
+						<input type="submit" value="Reserved" />
+					</form>
+				{{ else if and .Booking .Booking.IsJobScheduled }}
+					<form 
+						class="event-action"
+						method="POST" action="/jobs/{{ .Booking.ID }}?delete=true" 
+						onsubmit="return confirm('Are you sure you want to cancel reservation?');"
+					>
+						<input type="submit" value="Reserved" />
+					</form>
+				{{ else }}
+					<form 
+						class="event-action" 
+						method="POST" 
+						action="/events/{{ .ID }}/bookings"
+					>
+						<input type="text" name="bookable_from" value="{{ .BookableFrom.Format "2006-01-02T15:04:05Z07:00" }}" hidden />
+						{{ if .FullyBooked}}
+							<input type="submit" value="Full" disabled />
+						{{ else  if  .Bookable }}
 							<input type="submit" value="Book" />
-							{{ else if .Reservable }}
+						{{ else if .Reservable }}
 							<input type="submit" value="Reserve" />
-							{{ end }}
-						</FORM>
-					{{ end }}
-				</div>
-			</li>
-			{{ $day = .StartTime.Day }}
-		{{- end }}
-	</ul>
-</div>
+						{{ end }}
+					</form>
+				{{ end }}
+			</article>
+		{{ $day = .StartTime.Day }}
+	{{- end }}
+		</div>
+	</section>
+</main>
 {{- end }}

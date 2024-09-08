@@ -1,11 +1,81 @@
 {{ define "main"}}
-<form action="/" method="POST">
-	<label for="logn">E-mail / phone number / personal number</label>
-	<input id="login" name="login" type="text" />
+<style>
+	body {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		margin: 0;
+		padding: 0;
+		background-color: #f2f2f7;
+		color: #1c1c1e;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		height: 100vh;
+	}
+	.login-container {
+		background-color: #ffffff;
+		border-radius: 10px;
+		padding: 2rem;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+		width: 100%;
+		max-width: 320px;
+	}
+	h1 {
+		font-size: 24px;
+		font-weight: 600;
+		text-align: center;
+		margin-bottom: 1.5rem;
+		color: #007aff;
+	}
+	form {
+		display: flex;
+		flex-direction: column;
+	}
+	label {
+		font-size: 14px;
+		font-weight: 500;
+		margin-bottom: 0.5rem;
+		color: #8e8e93;
+	}
+	input[type="text"],
+	input[type="password"] {
+		font-size: 16px;
+		padding: 0.75rem;
+		margin-bottom: 1rem;
+		border: 1px solid #c6c6c8;
+		border-radius: 8px;
+		background-color: #f2f2f7;
+	}
+	input[type="submit"] {
+		background-color: #007aff;
+		color: white;
+		font-size: 16px;
+		font-weight: 600;
+		padding: 0.75rem;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+	input[type="submit"]:hover {
+		background-color: #0056b3;
+	}
+	@media (max-width: 480px) {
+		.login-container {
+			padding: 1.5rem;
+		}
+	}
+</style>
 
-	<label for="password">Password</label>
-	<input id="password" name="password" type="password" />
-
-	<input type="submit" value="Login"/>
-</form>
+<main class="login-container">
+	<h1>Pilates Complete Login</h1>
+	<form action="/" method="POST">
+		<label for="login">Login</label>
+		<input type="text" id="login" name="login" required autocomplete="username">
+		
+		<label for="password">Password</label>
+		<input type="password" id="password" name="password" required autocomplete="current-password">
+		
+		<input type="submit" value="Log In">
+	</form>
+</main>
 {{ end }}
