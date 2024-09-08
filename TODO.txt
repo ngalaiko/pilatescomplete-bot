@@ -1,4 +1,4 @@
-* caldev integration
+* compression
 * htmlx
 * display errors in template
 * validate cookie with api

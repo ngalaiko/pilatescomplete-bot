@@ -3,6 +3,7 @@ module github.com/pilatescomplete-bot
 go 1.22.4
 
 require (
+	github.com/arran4/golang-ical v0.3.1
 	github.com/dgraph-io/badger/v4 v4.3.0
 	github.com/matoous/go-nanoid/v2 v2.1.0
 )

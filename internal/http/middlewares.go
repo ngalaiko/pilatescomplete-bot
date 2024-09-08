@@ -7,7 +7,7 @@ import (
 
 	"github.com/pilatescomplete-bot/internal/authentication"
 	"github.com/pilatescomplete-bot/internal/credentials"
-	"github.com/pilatescomplete-bot/internal/device"
+	"github.com/pilatescomplete-bot/internal/devices"
 )
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
@@ -29,13 +29,13 @@ func WithAuthentication(
 ) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			dvc, ok := device.FromCookies(r.Cookies())
+			device, ok := devices.FromCookies(r.Cookies())
 			if !ok {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			}
 
-			if _, err := credentialsStore.FindByID(r.Context(), dvc.CredentialsID); errors.Is(err, credentials.ErrNotFound) {
+			if _, err := credentialsStore.FindByID(r.Context(), device.CredentialsID); errors.Is(err, credentials.ErrNotFound) {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			} else if err != nil {
@@ -43,13 +43,13 @@ func WithAuthentication(
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			} else {
-				r = r.WithContext(device.NewContext(r.Context(), dvc))
-				for _, cookie := range dvc.ToCookies(r.Header.Get("X-Forwarded-Proto") == "https") {
+				r = r.WithContext(devices.NewContext(r.Context(), device))
+				for _, cookie := range device.ToCookies(r.Header.Get("X-Forwarded-Proto") == "https") {
 					w.Header().Add("Set-Cookie", cookie.String())
 				}
 			}
 
-			ctx, err := authenticationService.AuthenticateContext(r.Context(), dvc.CredentialsID)
+			ctx, err := authenticationService.AuthenticateContext(r.Context(), device.CredentialsID)
 			if err != nil {
 				log.Printf("[ERROR] find token: %s", err)
 				w.WriteHeader(http.StatusInternalServerError)

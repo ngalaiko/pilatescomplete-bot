@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -10,8 +11,9 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pilatescomplete-bot/internal/authentication"
+	"github.com/pilatescomplete-bot/internal/calendars"
 	"github.com/pilatescomplete-bot/internal/credentials"
-	"github.com/pilatescomplete-bot/internal/device"
+	"github.com/pilatescomplete-bot/internal/devices"
 	"github.com/pilatescomplete-bot/internal/events"
 	"github.com/pilatescomplete-bot/internal/http/templates"
 	"github.com/pilatescomplete-bot/internal/jobs"
@@ -27,16 +29,51 @@ func Handler(
 	authenticationService *authentication.Service,
 	eventsService *events.Service,
 	scheduler *jobs.Scheduler,
+	calendarsService *calendars.Service,
 ) http.HandlerFunc {
 	requireAuth := WithAuthentication(authenticationService, credentialsStore)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", requireAuth(handleListEvents(renderer, eventsService)))
-	mux.HandleFunc("POST /", handleLogin(apiClient, credentialsStore, tokensStore))
+	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(renderer, eventsService)))
+	mux.HandleFunc("POST /{$}", handleLogin(apiClient, credentialsStore, tokensStore))
+
 	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
+
 	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(apiClient, scheduler)))
 	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(apiClient)))
+
 	mux.HandleFunc("POST /jobs/{job_id}", requireAuth(handleDeleteJob(scheduler)))
+
+	mux.HandleFunc("GET /calendars/{calendar_id}/pilatescomplete.ics", handleGetCalendar(calendarsService))
+	mux.HandleFunc("POST /calendars", requireAuth(handleCreateCalendar(calendarsService)))
 	return mux.ServeHTTP
+}
+
+func handleGetCalendar(calendarsService *calendars.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		id := parts[2]
+
+		log.Printf("[INFO] get calendars %q", id)
+
+		w.Header().Set("Content-Type", "text/calendar")
+		if err := calendarsService.WriteICal(r.Context(), w, id); err != nil {
+			log.Printf("[ERROR] %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func handleCreateCalendar(calendarsService *calendars.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cal, err := calendarsService.CreateCalendar(r.Context())
+		if err != nil {
+			log.Printf("[ERROR] %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("webcal://localhost/calendars/%s/pilatescomplete.ics", cal.ID), http.StatusFound)
+	}
 }
 
 func handleDeleteJob(scheduler *jobs.Scheduler) http.HandlerFunc {
@@ -219,7 +256,7 @@ func handleLogin(
 				return
 			}
 
-			device := device.Device{
+			device := devices.Device{
 				CredentialsID: creds.ID,
 			}
 
