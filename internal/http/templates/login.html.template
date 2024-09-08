@@ -1,4 +1,19 @@
 {{ define "main"}}
+<main class="login-container">
+	<h1>Pilates Complete Login</h1>
+	<form action="/" method="POST">
+		<label for="login">Login</label>
+		<input type="text" id="login" name="login" required autocomplete="username">
+		
+		<label for="password">Password</label>
+		<input type="password" id="password" name="password" required autocomplete="current-password">
+		
+		<input type="submit" value="Log In">
+	</form>
+</main>
+{{ end }}
+
+{{ define "head" }}
 <style>
 	body {
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -65,17 +80,4 @@
 		}
 	}
 </style>
-
-<main class="login-container">
-	<h1>Pilates Complete Login</h1>
-	<form action="/" method="POST">
-		<label for="login">Login</label>
-		<input type="text" id="login" name="login" required autocomplete="username">
-		
-		<label for="password">Password</label>
-		<input type="password" id="password" name="password" required autocomplete="current-password">
-		
-		<input type="submit" value="Log In">
-	</form>
-</main>
 {{ end }}
