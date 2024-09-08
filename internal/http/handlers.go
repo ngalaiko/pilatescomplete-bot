@@ -127,20 +127,24 @@ func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
 	}
 }
 
+func nextMonth(t time.Time) time.Time {
+	return time.Date(t.Year(), (t.Month()+1)%12, t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+}
+
 func handleListEvents(
 	renderer templates.Renderer,
 	eventsService *events.Service,
 ) http.HandlerFunc {
-	parseDateOrNow := func(date string) time.Time {
+	parseDateOr := func(date string, ts time.Time) time.Time {
 		t, err := time.Parse(time.DateOnly, date)
 		if err != nil {
-			return time.Now()
+			return ts
 		}
 		return t
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		from := parseDateOrNow(r.URL.Query().Get("from"))
-		to := parseDateOrNow(r.URL.Query().Get("to"))
+		from := parseDateOr(r.URL.Query().Get("from"), time.Now())
+		to := parseDateOr(r.URL.Query().Get("to"), nextMonth(time.Now()))
 		if to.Before(from) {
 			to = from
 		}
