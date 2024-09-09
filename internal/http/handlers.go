@@ -3,7 +3,7 @@ package http
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,6 +23,7 @@ import (
 )
 
 func Handler(
+	logger *slog.Logger,
 	renderer templates.Renderer,
 	apiClient *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
@@ -32,50 +33,52 @@ func Handler(
 	scheduler *jobs.Scheduler,
 	calendarsService *calendars.Service,
 ) http.HandlerFunc {
-	requireAuth := WithAuthentication(authenticationService, credentialsStore)
+	requireAuth := WithAuthentication(logger, authenticationService, credentialsStore)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(renderer, eventsService)))
-	mux.HandleFunc("POST /{$}", handleLogin(apiClient, credentialsStore, tokensStore))
+	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(logger, renderer, eventsService)))
+	mux.HandleFunc("POST /{$}", handleLogin(logger, apiClient, credentialsStore, tokensStore))
 
-	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
+	mux.HandleFunc("GET /login", handleAuthenticationPage(logger, renderer))
 
-	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(apiClient, scheduler)))
-	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(apiClient)))
+	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(logger, apiClient, scheduler)))
+	mux.HandleFunc("POST /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(logger, apiClient)))
 
-	mux.HandleFunc("POST /jobs/{job_id}", requireAuth(handleDeleteJob(scheduler)))
+	mux.HandleFunc("POST /jobs/{job_id}", requireAuth(handleDeleteJob(logger, scheduler)))
 
-	mux.HandleFunc("GET /calendars/{calendar_id}/pilatescomplete.ics", handleGetCalendar(calendarsService))
-	mux.HandleFunc("POST /calendars", requireAuth(handleCreateCalendar(calendarsService)))
-	return mux.ServeHTTP
+	mux.HandleFunc("GET /calendars/{calendar_id}/pilatescomplete.ics", handleGetCalendar(logger, calendarsService))
+	mux.HandleFunc("POST /calendars", requireAuth(handleCreateCalendar(logger, calendarsService)))
+
+	return WithAccessLogs(logger)(mux.ServeHTTP)
 }
 
-func handleGetCalendar(calendarsService *calendars.Service) http.HandlerFunc {
+func handleGetCalendar(logger *slog.Logger, calendarsService *calendars.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		id := parts[2]
 
-		log.Printf("[INFO] get calendars %q", id)
-
 		w.Header().Set("Content-Type", "text/calendar")
 		if err := calendarsService.WriteICal(r.Context(), w, id); err != nil {
-			log.Printf("[ERROR] %s", err)
+			logger.Error("write calendar", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 }
 
-func handleCreateCalendar(calendarsService *calendars.Service) http.HandlerFunc {
+func handleCreateCalendar(
+	logger *slog.Logger,
+	calendarsService *calendars.Service,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cal, err := calendarsService.CreateCalendar(r.Context())
 		if err != nil {
-			log.Printf("[ERROR] %s", err)
+			logger.Error("create calendar", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		origin, err := url.Parse(r.Header.Get("Origin"))
 		if err != nil {
-			log.Printf("[ERROR] parse origin: %s", err)
+			logger.Error("parse origin", "error", err)
 			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
@@ -83,7 +86,7 @@ func handleCreateCalendar(calendarsService *calendars.Service) http.HandlerFunc 
 	}
 }
 
-func handleDeleteJob(scheduler *jobs.Scheduler) http.HandlerFunc {
+func handleDeleteJob(logger *slog.Logger, scheduler *jobs.Scheduler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		bookingID := parts[2]
@@ -91,7 +94,7 @@ func handleDeleteJob(scheduler *jobs.Scheduler) http.HandlerFunc {
 
 		if isDelete {
 			if err := scheduler.DeleteByID(r.Context(), bookingID); err != nil {
-				log.Printf("[ERROR] %s", err)
+				logger.Error("delete by id", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -101,7 +104,7 @@ func handleDeleteJob(scheduler *jobs.Scheduler) http.HandlerFunc {
 	}
 }
 
-func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc {
+func handleDeleteBooking(logger *slog.Logger, apiClient *pilatescomplete.APIClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		bookingID := parts[4]
@@ -109,7 +112,7 @@ func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc 
 
 		if isDelete {
 			if err := apiClient.CancelBooking(r.Context(), bookingID); err != nil {
-				log.Printf("[ERROR] %s", err)
+				logger.Error("cancal booking", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -120,6 +123,7 @@ func handleDeleteBooking(apiClient *pilatescomplete.APIClient) http.HandlerFunc 
 }
 
 func handleCreateBooking(
+	logger *slog.Logger,
 	apiClient *pilatescomplete.APIClient,
 	scheduler *jobs.Scheduler,
 ) http.HandlerFunc {
@@ -128,7 +132,7 @@ func handleCreateBooking(
 		eventID := parts[2]
 
 		if err := r.ParseForm(); err != nil {
-			log.Printf("[ERROR] parse form: %s", err)
+			logger.Error("parse form", "error", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -136,23 +140,23 @@ func handleCreateBooking(
 		if _, err := apiClient.BookActivity(r.Context(), eventID); errors.Is(err, pilatescomplete.ErrActivityBookingTooEarly) {
 			bookableFrom, err := time.Parse(time.RFC3339, r.PostForm.Get("bookable_from"))
 			if err != nil {
-				log.Printf("[ERROR] parse bookable_from: %s", err)
+				logger.Error("parse bookable_from", "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 			job, err := jobs.NewBookEventJob(r.Context(), eventID, bookableFrom)
 			if err != nil {
-				log.Printf("[ERROR] new book event job: %s", err)
+				logger.Error("new book event job", "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 			if err := scheduler.Schedule(r.Context(), job); err != nil {
-				log.Printf("[ERROR] schedule: %s", err)
+				logger.Error("schedule", "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		} else if err != nil {
-			log.Printf("[ERROR] %s", err)
+			logger.Error("book acrivity", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -161,10 +165,10 @@ func handleCreateBooking(
 	}
 }
 
-func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
+func handleAuthenticationPage(logger *slog.Logger, renderer templates.Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := renderer.RenderLoginPage(w, templates.LoginData{}); err != nil {
-			log.Printf("[ERROR] %s", err)
+			logger.Error("render login page", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -172,20 +176,21 @@ func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
 }
 
 func handleListEvents(
+	logger *slog.Logger,
 	renderer templates.Renderer,
 	eventsService *events.Service,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		events, err := eventsService.ListEvents(r.Context())
 		if err != nil {
-			log.Printf("[ERROR] parse form: %s", err)
+			logger.Error("parse form", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		if err := renderer.RenderEventsPage(w, templates.EventsData{
 			Events: events,
 		}); err != nil {
-			log.Printf("[ERROR] %s", err)
+			logger.Error("render events page", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -193,6 +198,7 @@ func handleListEvents(
 }
 
 func handleLogin(
+	logger *slog.Logger,
 	client *pilatescomplete.APIClient,
 	credentialsStore *credentials.Store,
 	tokensStore *tokens.Store,
@@ -201,7 +207,7 @@ func handleLogin(
 		_, isAuthenticated := tokens.FromContext(r.Context())
 		if !isAuthenticated {
 			if err := r.ParseForm(); err != nil {
-				log.Printf("[ERROR] parse form: %s", err)
+				logger.Error("perse form", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -213,7 +219,7 @@ func handleLogin(
 				Password: password,
 			})
 			if err != nil {
-				log.Printf("[ERROR] login: %s", err)
+				logger.Error("login", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -226,7 +232,7 @@ func handleLogin(
 					Password: password,
 				}
 				if err := credentialsStore.Insert(r.Context(), creds); err != nil {
-					log.Printf("[ERROR] insert credentials: %s", err)
+					logger.Error("insert credentials", "error", err)
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
@@ -237,7 +243,7 @@ func handleLogin(
 				Token:         cookie.Value,
 				Expires:       cookie.Expires,
 			}); err != nil {
-				log.Printf("[ERROR] insert token: %s", err)
+				logger.Error("insert token", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

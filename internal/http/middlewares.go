@@ -2,8 +2,9 @@ package http
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/pilatescomplete-bot/internal/authentication"
 	"github.com/pilatescomplete-bot/internal/credentials"
@@ -23,7 +24,40 @@ func WithMiddlewares(middlewares ...Middleware) Middleware {
 	}
 }
 
+type responseWriter struct {
+	statusCode int
+	http.ResponseWriter
+}
+
+func (w *responseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func WithAccessLogs(logger *slog.Logger) Middleware {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			writer := &responseWriter{
+				ResponseWriter: w,
+				statusCode:     http.StatusOK,
+			}
+
+			next(writer, r)
+
+			logger.Info("request",
+				"method", r.Method,
+				"url", r.URL,
+				"status_code", writer.statusCode,
+				"duration", time.Since(start),
+				"user_agent", r.Header.Get("User-Agent"),
+			)
+		}
+	}
+}
+
 func WithAuthentication(
+	logger *slog.Logger,
 	authenticationService *authentication.Service,
 	credentialsStore *credentials.Store,
 ) Middleware {
@@ -39,7 +73,7 @@ func WithAuthentication(
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			} else if err != nil {
-				log.Printf("[ERROR] find credentials: %s", err)
+				logger.Error("find credentials", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			} else {
@@ -51,7 +85,7 @@ func WithAuthentication(
 
 			ctx, err := authenticationService.AuthenticateContext(r.Context(), device.CredentialsID)
 			if err != nil {
-				log.Printf("[ERROR] find token: %s", err)
+				logger.Error("authenticate context", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

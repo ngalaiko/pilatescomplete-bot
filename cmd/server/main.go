@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -44,12 +45,16 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: new(slog.LevelVar),
+	}))
+
 	db, err := badger.Open(badger.DefaultOptions(*dbPath))
 	if err != nil {
 		log.Fatalf("[ERROR] db: %s", err)
 	}
 
-	if err := migrations.Run(db); err != nil {
+	if err := migrations.Run(logger, db); err != nil {
 		log.Fatalf("[ERROR] db migratons: %s", err)
 	}
 
@@ -63,16 +68,17 @@ func main() {
 	credentialsStore := credentials.NewStore(db, encryptionKey)
 	tokensStore := tokens.NewStore(db, encryptionKey)
 	jobsStore := jobs.NewStore(db)
-	apiClient := pilatescomplete.NewAPIClient()
+	apiClient := pilatescomplete.NewAPIClient(logger)
 	authenticationService := authentication.NewService(tokensStore, credentialsStore, apiClient)
 	eventsService := events.NewService(jobsStore, apiClient)
-	scheduler := jobs.NewScheduler(jobsStore, apiClient, authenticationService)
+	scheduler := jobs.NewScheduler(logger, jobsStore, apiClient, authenticationService)
 	calendarsStore := calendars.NewStore(db)
 	calendarsService := calendars.NewService(calendarsStore, authenticationService, eventsService)
 	if err := scheduler.Init(ctx); err != nil {
 		log.Fatalf("[ERROR] init scheduler: %s", err)
 	}
 	htmlHandler := httpx.Handler(
+		logger,
 		renderer,
 		apiClient,
 		tokensStore,

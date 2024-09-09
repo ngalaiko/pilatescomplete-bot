@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 
 	ics "github.com/arran4/golang-ical"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -44,7 +43,6 @@ func (s *Service) CreateCalendar(ctx context.Context) (*Calendar, error) {
 	if err := s.store.InsertCalendar(ctx, cal); err != nil {
 		return nil, fmt.Errorf("insert calendar: %w", err)
 	}
-	log.Printf("[INFO] calendar %q created", cal.ID)
 	return cal, nil
 }
 

@@ -3,7 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -13,6 +13,7 @@ import (
 )
 
 type Scheduler struct {
+	logger                *slog.Logger
 	store                 *Store
 	apiClient             *pilatescomplete.APIClient
 	authenticationService *authentication.Service
@@ -22,11 +23,13 @@ type Scheduler struct {
 }
 
 func NewScheduler(
+	logger *slog.Logger,
 	store *Store,
 	apiClient *pilatescomplete.APIClient,
 	authenticationService *authentication.Service,
 ) *Scheduler {
 	return &Scheduler{
+		logger:                logger,
 		store:                 store,
 		apiClient:             apiClient,
 		authenticationService: authenticationService,
@@ -86,7 +89,7 @@ func (s *Scheduler) DeleteByID(ctx context.Context, id string) error {
 		return fmt.Errorf("delete job: %w", err)
 	}
 	s.deleteTimer(job)
-	log.Printf("[INFO] deleted job %q", job.ID)
+	s.logger.Info("deleted job", "job_id", job.ID)
 	return nil
 }
 
@@ -102,14 +105,14 @@ func (s *Scheduler) deleteTimer(job *Job) {
 	s.jobsGuard.Lock()
 	delete(s.jobs, job.ID)
 	s.jobsGuard.Unlock()
-	log.Printf("[INFO] removed job %q  from scheduled", job.ID)
+	s.logger.Info("unscheduled job", "job_id", job.ID)
 }
 
 func (s *Scheduler) setupTimerForJob(job *Job) {
 	s.jobsGuard.Lock()
 	s.jobs[job.ID] = job
 	s.jobsGuard.Unlock()
-	log.Printf("[INFO] scheduled job %q to run at %s", job.ID, job.Time)
+	s.logger.Info("scheduled job", "job_id", job.ID)
 }
 
 func (s *Scheduler) runJob(job *Job) {
@@ -119,15 +122,15 @@ func (s *Scheduler) runJob(job *Job) {
 	job.Status = StatusRunning
 	job.Attempts = append(job.Attempts, time.Now())
 
-	log.Printf("[INFO] starting job %q, attempt %d", job.ID, len(job.Attempts))
+	s.logger.Info("starting job", "job_id", job.ID, "attempt", len(job.Attempts))
 
 	if err := s.store.InsertJob(ctx, job); err != nil {
-		log.Printf("[ERROR] failed update job %q: %s", job.ID, err)
+		s.logger.Error("insert job", "error", err, "job_id", err)
 		return
 	}
 
 	if err := job.Do(ctx, s); err != nil {
-		log.Printf("[ERROR] job %q failed: %s", job.ID, err)
+		s.logger.Error("job failed", "error", err, "job_id", err)
 		job.Errors = append(job.Errors, err.Error())
 		job.Status = StatusFailing
 		if next := nextRetry(job); next != nil {
@@ -136,14 +139,14 @@ func (s *Scheduler) runJob(job *Job) {
 			s.deleteTimer(job)
 		}
 	} else {
-		log.Printf("[INFO] job %q succeeded", job.ID)
+		s.logger.Error("job succeeded", "job_id", job.ID)
 		job.Status = StatusSucceded
 		job.Errors = append(job.Errors, "")
 		s.deleteTimer(job)
 	}
 
 	if err := s.store.InsertJob(ctx, job); err != nil {
-		log.Printf("[ERROR] failed update job %q: %s", job.ID, err)
+		s.logger.Error("insert job", "job_id", job.ID, "error", err)
 		return
 	}
 }

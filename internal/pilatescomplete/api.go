@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -27,11 +27,15 @@ var (
 )
 
 type APIClient struct {
+	logger     *slog.Logger
 	httpClient http.Client
 }
 
-func NewAPIClient() *APIClient {
+func NewAPIClient(
+	logger *slog.Logger,
+) *APIClient {
 	return &APIClient{
+		logger:     logger,
 		httpClient: http.Client{},
 	}
 }
@@ -42,7 +46,7 @@ type LoginData struct {
 }
 
 func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, error) {
-	log.Printf("[INFO] pilatescompleteapi: login")
+	c.logger.Info("login")
 	values := url.Values{}
 
 	values.Set("_method", http.MethodPost)
@@ -95,8 +99,7 @@ func (c APIClient) ListEvents(ctx context.Context) ([]*Event, error) {
 	if err := authenticateRequest(ctx, req); err != nil {
 		return nil, err
 	}
-
-	log.Printf("[INFO] %s %s", req.Method, req.URL)
+	c.logger.Info("api request", "method", req.Method, "url", req.URL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -176,8 +179,7 @@ func (c APIClient) BookActivity(ctx context.Context, activityID string) (*Activi
 	if err := authenticateRequest(ctx, req); err != nil {
 		return nil, err
 	}
-
-	log.Printf("[INFO] %s %s", req.Method, req.URL)
+	c.logger.Info("api request", "method", req.Method, "url", req.URL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -216,8 +218,7 @@ func (c APIClient) CancelBooking(ctx context.Context, activityBookingID string) 
 	if err := authenticateRequest(ctx, req); err != nil {
 		return err
 	}
-
-	log.Printf("[INFO] %s %s", req.Method, req.URL)
+	c.logger.Info("api request", "method", req.Method, "url", req.URL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
