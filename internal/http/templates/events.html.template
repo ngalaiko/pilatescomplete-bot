@@ -2,9 +2,12 @@
 <main class="calendar">
 	{{ $day := -1 }}
 
-	<form action="/calendars" method="POST">
-		<input type="submit" value="Add to calendar" />
-	</form>
+	<header class="calendar-header">
+		<h1>Schedule</h1>
+		<form action="/calendars" method="POST">
+			<input type="submit" value="Add to calendar" />
+		</form>
+	</header>
 
 	{{ if len .Events | ne 0 }}
 	<section class="day">
@@ -104,6 +107,40 @@
 		flex-direction: column;
 		max-width: 100%;
 		margin: 0 auto;
+	}
+	.calendar-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin: 20px 15px;
+		padding-bottom: 10px;
+		border-bottom: 1px solid #c6c6c8;
+	}
+	.calendar-header h1 {
+		font-size: 24px;
+		font-weight: 600;
+		color: #1c1c1e;
+		margin: 0;
+	}
+	.calendar-header form {
+		margin: 0;
+	}
+	.calendar-header form input[type="submit"] {
+		padding: 8px 16px;
+		font-size: 14px;
+		font-weight: 500;
+		color: white;
+		background-color: #007aff;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+	}
+	.calendar-header form input[type="submit"]:hover {
+		background-color: #0056b3;
+	}
+	.calendar-header form input[type="submit"]:active {
+		background-color: #004080;
 	}
 	.day {
 		border-bottom: 1px solid #c6c6c8;
