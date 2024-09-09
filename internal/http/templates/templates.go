@@ -17,8 +17,6 @@ type LoginData struct{}
 
 type EventsData struct {
 	Events []*events.Event
-	From   time.Time
-	To     time.Time
 }
 
 type Renderer interface {

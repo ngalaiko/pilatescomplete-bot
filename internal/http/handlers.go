@@ -171,31 +171,12 @@ func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
 	}
 }
 
-func nextMonth(t time.Time) time.Time {
-	return time.Date(t.Year(), (t.Month()+1)%12, t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-}
-
 func handleListEvents(
 	renderer templates.Renderer,
 	eventsService *events.Service,
 ) http.HandlerFunc {
-	parseDateOr := func(date string, ts time.Time) time.Time {
-		t, err := time.Parse(time.DateOnly, date)
-		if err != nil {
-			return ts
-		}
-		return t
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		from := parseDateOr(r.URL.Query().Get("from"), time.Now())
-		to := parseDateOr(r.URL.Query().Get("to"), nextMonth(time.Now()))
-		if to.Before(from) {
-			to = from
-		}
-		events, err := eventsService.ListEvents(r.Context(), events.ListEventsInput{
-			From: &from,
-			To:   &to,
-		})
+		events, err := eventsService.ListEvents(r.Context())
 		if err != nil {
 			log.Printf("[ERROR] parse form: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -203,8 +184,6 @@ func handleListEvents(
 		}
 		if err := renderer.RenderEventsPage(w, templates.EventsData{
 			Events: events,
-			From:   from,
-			To:     to,
 		}); err != nil {
 			log.Printf("[ERROR] %s", err)
 			w.WriteHeader(http.StatusInternalServerError)

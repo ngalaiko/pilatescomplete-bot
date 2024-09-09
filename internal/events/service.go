@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/pilatescomplete-bot/internal/bookings"
 	"github.com/pilatescomplete-bot/internal/jobs"
@@ -26,24 +25,16 @@ func NewService(
 	}
 }
 
-type ListEventsInput struct {
-	From *time.Time
-	To   *time.Time
-}
-
-func (s *Service) ListEvents(ctx context.Context, input ListEventsInput) ([]*Event, error) {
+func (s *Service) ListEvents(ctx context.Context) ([]*Event, error) {
 	token, ok := tokens.FromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("token missing from context")
 	}
-	apiResponse, err := s.apiClient.ListEvents(ctx, pilatescomplete.ListEventsInput{
-		From: input.From,
-		To:   input.To,
-	})
+	apiResponse, err := s.apiClient.ListEvents(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
 	}
-	events, err := EventsFromAPI(apiResponse.Events)
+	events, err := EventsFromAPI(apiResponse)
 	if err != nil {
 		return nil, fmt.Errorf("events from api: %w", err)
 	}

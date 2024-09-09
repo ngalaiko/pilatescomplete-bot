@@ -57,7 +57,7 @@ func (s *Service) WriteICal(ctx context.Context, w io.Writer, id string) error {
 	if err != nil {
 		return fmt.Errorf("authenticate context: %w", err)
 	}
-	events, err := s.eventsService.ListEvents(ctx, events.ListEventsInput{})
+	events, err := s.eventsService.ListEvents(ctx)
 	if err != nil {
 		return fmt.Errorf("list events: %w", err)
 	}

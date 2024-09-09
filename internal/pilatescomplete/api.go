@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
@@ -81,27 +80,10 @@ func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, err
 	return nil, ErrInvalidLoginOrPassword
 }
 
-type ListEventsInput struct {
-	From *time.Time
-	To   *time.Time
-}
-
-type ListEventsResponse struct {
-	Events []Event `json:"activities"`
-}
-
-func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*ListEventsResponse, error) {
-	values := url.Values{}
-	if input.From != nil {
-		values.Add("from", input.From.Format(time.DateOnly))
-	}
-	if input.To != nil {
-		values.Add("to", input.To.Format(time.DateOnly))
-	}
-
+func (c APIClient) ListEvents(ctx context.Context) ([]*Event, error) {
 	req, err := http.NewRequest(
 		http.MethodGet,
-		fmt.Sprintf("https://pilatescomplete.wondr.se/w_booking/activities/list?%s", values.Encode()),
+		"https://pilatescomplete.wondr.se/w_booking/activities/list",
 		nil,
 	)
 	if err != nil {
@@ -122,12 +104,16 @@ func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*List
 	}
 	defer resp.Body.Close()
 
-	response := &ListEventsResponse{}
+	type listEventsResponse struct {
+		Events []*Event `json:"activities"`
+	}
+
+	response := &listEventsResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return response, nil
+	return response.Events, nil
 }
 
 type ErrorResponse struct {

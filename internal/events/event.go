@@ -70,7 +70,7 @@ func calculateBookableFrom(event *pilatescomplete.Event) time.Time {
 	return time.Date(ts.Year(), ts.Month(), ts.Day(), 7, 0, 1, 0, ts.Location())
 }
 
-func EventFromAPI(event pilatescomplete.Event) (*Event, error) {
+func EventFromAPI(event *pilatescomplete.Event) (*Event, error) {
 	var booking *bookings.Booking
 	if event.ActivityBooking != nil {
 		var err error
@@ -91,12 +91,12 @@ func EventFromAPI(event pilatescomplete.Event) (*Event, error) {
 		PlacesTaken:         event.Activity.BookingPlacesCount.Int64(),
 		ReservesTotal:       event.Activity.Reserves.Int64(),
 		ReservesTaken:       event.Activity.BookingReservesCount.Int64(),
-		BookableFrom:        calculateBookableFrom(&event),
+		BookableFrom:        calculateBookableFrom(event),
 		Color:               event.ActivityType.ColorNew,
 	}, nil
 }
 
-func EventsFromAPI(events []pilatescomplete.Event) ([]*Event, error) {
+func EventsFromAPI(events []*pilatescomplete.Event) ([]*Event, error) {
 	out := make([]*Event, len(events))
 	for i := range events {
 		var err error
