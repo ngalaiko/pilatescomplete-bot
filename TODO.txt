@@ -1,4 +1,5 @@
 * htmlx
+* store past events in the calendar
 * display errors in template
 * validate cookie with api
 * csrf
