@@ -19,6 +19,7 @@ import (
 var (
 	ErrInvalidLoginOrPassword  = errors.New("invalid login or password")
 	ErrTokenMissingFromContext = errors.New("token missing from context")
+	ErrNotFound                = errors.New("not found")
 )
 
 var (
@@ -82,6 +83,45 @@ func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, err
 	}
 
 	return nil, ErrInvalidLoginOrPassword
+}
+
+func (c APIClient) GetEvent(ctx context.Context, id string) (*Event, error) {
+	values := url.Values{}
+	values.Set("activity", id)
+	req, err := http.NewRequest(
+		http.MethodGet,
+		"https://pilatescomplete.wondr.se/w_booking/activities/list?"+values.Encode(),
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+
+	if err := authenticateRequest(ctx, req); err != nil {
+		return nil, err
+	}
+	c.logger.Info("api request", "method", req.Method, "url", req.URL)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	type listEventsResponse struct {
+		Events []*Event `json:"activities"`
+	}
+
+	response := &listEventsResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	if len(response.Events) == 0 {
+		return nil, ErrNotFound
+	}
+	return response.Events[0], nil
 }
 
 func (c APIClient) ListEvents(ctx context.Context) ([]*Event, error) {

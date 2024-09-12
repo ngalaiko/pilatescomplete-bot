@@ -1,0 +1,86 @@
+{{ define "event"}}
+<article
+	id="event-{{ .ID }}"
+	class="event 
+		{{ if and .Booking .Booking.IsBooked  }}
+			booked
+		{{ else if or (and .Booking .Booking.IsReserved) (and .Booking .Booking.IsJobScheduled) }}
+			reserved
+		{{ else if .FullyBooked }}
+			unavailable
+		{{ else  if .Bookable }}
+			available
+		{{ else if .Reservable }}
+			reservable
+		{{ end }}
+	" data-time="{{ .StartTime.Format "15:04" }}">
+	<div class="event-details">
+		<h2 class="event-name">{{ .DisplayName }}</h3>
+		<p class="event-location">{{ .LocationDisplayName }}</p>
+		{{ with .DisplayNotice }}
+		<p class="event-description">{{ . }}</p>
+		{{ end }}
+	</div>
+
+	{{ if and .Booking .Booking.IsBooked }}
+		<form 
+			class="event-action" 
+			hx-delete="/events/{{ .ID }}/bookings/{{ .Booking.ID }}"
+			hx-select-oob="#event-{{ .ID }}"
+			hx-swap="outerHTML"
+			hx-confirm="Are you sure you want to cancel booking?"
+		>
+			<input type="submit" value="Booked" />
+			<input class="htmx-indicator" type="submit" disabled value="Loading" />
+		</form>
+	{{ else if and .Booking .Booking.IsReserved }}
+		<form 
+			class="event-action"
+			hx-delete="/events/{{ .ID }}/bookings/{{ .Booking.ID }}"
+			hx-select-oob="#event-{{ .ID }}"
+			hx-swap="outerHTML"
+			hx-confirm="Are you sure you want to cancel reservation?"
+		>
+			<input type="submit" value="Reserved" />
+			<input class="htmx-indicator" type="submit" disabled value="Loading" />
+		</form>
+	{{ else if and .Booking .Booking.IsJobScheduled }}
+		<form 
+			class="event-action"
+			hx-delete="/events/{{ .ID }}/jobs/{{ .Booking.ID }}"
+			hx-select-oob="#event-{{ .ID }}"
+			hx-swap="outerHTML"
+			hx-confirm="Are you sure you want to cancel reservation?"
+		>
+			<input type="submit" value="Reserved" />
+			<input class="htmx-indicator" type="submit" disabled value="Loading" />
+		</form>
+	{{ else if (now.Before .BookableFrom) }}
+		<form
+			class="event-action"
+			hx-post="/events/{{ .ID }}/jobs"
+			hx-select-oob="#event-{{ .ID }}"
+			hx-swap="outerHTML"
+		>
+			<input type="submit" value="Book" />
+			<input class="htmx-indicator" type="submit" disabled value="Loading" />
+		</form>
+	{{ else }}
+		<form 
+			class="event-action" 
+			hx-post="/events/{{ .ID }}/bookings"
+			hx-select-oob="#event-{{ .ID }}"
+			hx-swap="outerHTML"
+		>
+			{{ if .FullyBooked}}
+				<input type="submit" value="Full" disabled />
+			{{ else  if  .Bookable }}
+				<input type="submit" value="Book" />
+			{{ else if .Reservable }}
+				<input type="submit" value="Reserve" />
+			{{ end }}
+			<input class="htmx-indicator" type="submit" disabled value="Loading" />
+		</form>
+	{{ end }}
+</article>
+{{ end }}

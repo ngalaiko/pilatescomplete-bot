@@ -2,11 +2,13 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/pilatescomplete-bot/internal/authentication"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 	"github.com/pilatescomplete-bot/internal/tokens"
@@ -71,6 +73,23 @@ func (s *Scheduler) Init(ctx context.Context) error {
 	}()
 
 	return nil
+}
+
+func (s *Scheduler) FindByID(ctx context.Context, id string) (*Job, error) {
+	token, ok := tokens.FromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("token missing from context")
+	}
+	job, err := s.store.FindByID(ctx, id)
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	if job.BookEvent.CredentialsID != token.CredentialsID {
+		return nil, ErrNotFound
+	}
+	return job, nil
 }
 
 func (s *Scheduler) DeleteByID(ctx context.Context, id string) error {

@@ -25,6 +25,32 @@ func NewService(
 	}
 }
 
+func (s *Service) GetEvent(ctx context.Context, id string) (*Event, error) {
+	token, ok := tokens.FromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("token missing from context")
+	}
+	apiResponse, err := s.apiClient.GetEvent(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("list events: %w", err)
+	}
+	event, err := EventFromAPI(apiResponse)
+	if err != nil {
+		return nil, fmt.Errorf("events from api: %w", err)
+	}
+	bookingJobs, err := s.jobsStore.ListJobs(ctx, jobs.BookEventsByCredentialsIDEventIDs(token.CredentialsID, id))
+	if err != nil {
+		return nil, fmt.Errorf("list jobs: %w", err)
+	}
+	if len(bookingJobs) > 0 && bookingJobs[0].Status != jobs.StatusSucceded {
+		event.Booking = &bookings.Booking{
+			ID:     bookingJobs[0].ID,
+			Status: bookings.BookingStatusJobScheduled,
+		}
+	}
+	return event, nil
+}
+
 func (s *Service) ListEvents(ctx context.Context) ([]*Event, error) {
 	token, ok := tokens.FromContext(ctx)
 	if !ok {

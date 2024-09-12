@@ -21,6 +21,7 @@ type EventsData struct {
 
 type Renderer interface {
 	RenderEventsPage(io.Writer, EventsData) error
+	RenderEvent(io.Writer, *events.Event) error
 	RenderLoginPage(io.Writer, LoginData) error
 }
 
@@ -61,10 +62,19 @@ func (e *FilesystemTemplates) RenderEventsPage(w io.Writer, data EventsData) err
 	return eventsTemplate.Execute(w, data)
 }
 
+func (e *FilesystemTemplates) RenderEvent(w io.Writer, event *events.Event) error {
+	templates, err := template.New("").Funcs(functions).ParseFS(e.filesystem, "*.template")
+	if err != nil {
+		return fmt.Errorf("parse fs: %w", err)
+	}
+	return templates.Lookup("event").Execute(w, event)
+}
+
 var _ Renderer = &EmbedTemplates{}
 
 type EmbedTemplates struct {
 	loginTemplate  *template.Template
+	eventTemplate  *template.Template
 	eventsTemplate *template.Template
 }
 
@@ -99,6 +109,7 @@ func NewEmbedTemplates() *EmbedTemplates {
 	return &EmbedTemplates{
 		loginTemplate:  template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "login.html.template")),
 		eventsTemplate: template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "events.html.template")),
+		eventTemplate:  templates.Lookup("event"),
 	}
 }
 
@@ -108,4 +119,8 @@ func (e *EmbedTemplates) RenderLoginPage(w io.Writer, data LoginData) error {
 
 func (e *EmbedTemplates) RenderEventsPage(w io.Writer, data EventsData) error {
 	return e.eventsTemplate.Execute(w, data)
+}
+
+func (e *EmbedTemplates) RenderEvent(w io.Writer, event *events.Event) error {
+	return e.eventTemplate.Execute(w, event)
 }
