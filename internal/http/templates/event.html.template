@@ -4,8 +4,10 @@
 	class="event 
 		{{ if and .Booking .Booking.IsBooked  }}
 			booked
-		{{ else if or (and .Booking .Booking.IsReserved) (and .Booking .Booking.IsJobScheduled) }}
+		{{ else if and .Booking .Booking.IsReserved }}
 			reserved
+		{{ else if and .Booking .Booking.IsJobScheduled }}
+			future-booking
 		{{ else if .FullyBooked }}
 			unavailable
 		{{ else  if .Bookable }}
