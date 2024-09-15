@@ -65,11 +65,17 @@ func (s *Service) WriteICal(ctx context.Context, w io.Writer, id string) error {
 		if event.Booking == nil {
 			continue
 		}
-		if event.Booking.Status != bookings.BookingStatusBooked {
+		var displayName string
+		switch event.Booking.Status {
+		case bookings.BookingStatusBooked:
+			displayName = fmt.Sprintf("[BOOKED] %s", event.DisplayName)
+		case bookings.BookingStatusReserved, bookings.BookingStatusJobScheduled:
+			displayName = fmt.Sprintf("[RESERVED] %s", event.DisplayName)
+		default:
 			continue
 		}
 		ievent := icalendar.AddEvent(event.Booking.ID)
-		ievent.SetSummary(event.DisplayName)
+		ievent.SetSummary(displayName)
 		if event.DisplayNotice != "" {
 			ievent.SetDescription(event.DisplayNotice)
 		}
