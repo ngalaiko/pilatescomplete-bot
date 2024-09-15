@@ -18,6 +18,7 @@ import (
 	"github.com/pilatescomplete-bot/internal/credentials"
 	"github.com/pilatescomplete-bot/internal/events"
 	httpx "github.com/pilatescomplete-bot/internal/http"
+	"github.com/pilatescomplete-bot/internal/http/static"
 	"github.com/pilatescomplete-bot/internal/http/templates"
 	"github.com/pilatescomplete-bot/internal/jobs"
 	"github.com/pilatescomplete-bot/internal/keys"
@@ -59,10 +60,13 @@ func main() {
 	}
 
 	var renderer templates.Renderer
+	var staticHandler http.Handler
 	if *watch {
 		renderer = templates.NewFilesystemTemplates("./internal/http/templates")
+		staticHandler = static.NewFilesystemHandler("./internal/http/static/files")
 	} else {
 		renderer = templates.NewEmbedTemplates()
+		staticHandler = static.NewEmbedHandler()
 	}
 
 	credentialsStore := credentials.NewStore(db, encryptionKey)
@@ -80,6 +84,7 @@ func main() {
 	htmlHandler := httpx.Handler(
 		logger,
 		renderer,
+		staticHandler,
 		apiClient,
 		tokensStore,
 		credentialsStore,

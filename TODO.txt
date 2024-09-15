@@ -1,4 +1,3 @@
-* host htmlx locally
 * store past events in the calendar
 * display errors in template
 * validate cookie with api

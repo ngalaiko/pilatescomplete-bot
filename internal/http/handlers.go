@@ -25,6 +25,7 @@ import (
 func Handler(
 	logger *slog.Logger,
 	renderer templates.Renderer,
+	staticHandler http.Handler,
 	apiClient *pilatescomplete.APIClient,
 	tokensStore *tokens.Store,
 	credentialsStore *credentials.Store,
@@ -48,6 +49,8 @@ func Handler(
 
 	mux.HandleFunc("GET /calendars/{calendar_id}/pilatescomplete.ics", handleGetCalendar(logger, calendarsService))
 	mux.HandleFunc("POST /calendars", requireAuth(handleCreateCalendar(logger, calendarsService)))
+
+	mux.HandleFunc("GET /", staticHandler.ServeHTTP)
 
 	return WithAccessLogs(logger)(mux.ServeHTTP)
 }
