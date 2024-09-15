@@ -34,5 +34,207 @@
 
 {{ define "head" }}
 <script src="/htmx.min.js"></script>
-<link rel="stylesheet" href="/index.css" />
+<style>
+	:root {
+	  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	  --background-color: #f2f2f7;
+	  --text-color: #1c1c1e;
+	  --border-color: #c6c6c8;
+	  --secondary-text-color: #8e8e93;
+
+	  --primary-blue: #007aff;
+	  --primary-blue-hover: #0056b3;
+	  --primary-blue-active: #004080;
+
+	  --status-available: #34c759;
+	  --status-reservable: #ff9500;
+	  --status-reserved: #5856d6;
+	  --status-booked: #007aff;
+	  --status-unavailable: #ff3b30;
+	  --status-future-booking: #64d2ff;
+	}
+
+	/* Base Styles */
+	body {
+	  font-family: var(--font-family);
+	  margin: 0;
+	  padding: 0;
+	  background-color: var(--background-color);
+	  color: var(--text-color);
+	}
+
+	/* Calendar Layout */
+	.calendar {
+	  display: flex;
+	  flex-direction: column;
+	  max-width: 100%;
+	  margin: 0 auto;
+	}
+
+	/* Calendar Header */
+	.calendar-header {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	  margin: 20px 15px;
+	  padding-bottom: 10px;
+	  border-bottom: 1px solid var(--border-color);
+	}
+
+	.calendar-header h1 {
+	  font-size: 24px;
+	  font-weight: 600;
+	  margin: 0;
+	}
+
+	.calendar-header form {
+	  margin: 0;
+	}
+
+	.calendar-header form input[type="submit"] {
+	  padding: 8px 16px;
+	  font-size: 14px;
+	  font-weight: 500;
+	  color: white;
+	  background-color: var(--primary-blue);
+	  border: none;
+	  border-radius: 8px;
+	  cursor: pointer;
+	  transition: background-color 0.2s ease;
+	}
+
+	.calendar-header form input[type="submit"]:hover {
+	  background-color: var(--primary-blue-hover);
+	}
+
+	.calendar-header form input[type="submit"]:active {
+	  background-color: var(--primary-blue-active);
+	}
+
+	/* Day Styles */
+	.day {
+	  border-bottom: 1px solid var(--border-color);
+	  padding: 10px 0;
+	}
+
+	.day-header {
+	  font-size: 17px;
+	  font-weight: bold;
+	  padding: 0 15px;
+	  margin-bottom: 10px;
+	  position: sticky;
+	  top: 0;
+	  background-color: rgba(242, 242, 247, 0.9);
+	  z-index: 1;
+	}
+
+	/* Events Styles */
+	.events {
+	  display: flex;
+	  flex-direction: column;
+	}
+
+	.event {
+	  display: flex;
+	  flex-wrap: wrap;
+	  padding: 5px 15px;
+	  border-left: 2px solid;
+	  margin-left: 60px;
+	  position: relative;
+	}
+
+	.event::before {
+	  content: attr(data-time);
+	  position: absolute;
+	  left: -65px;
+	  top: 5px;
+	  font-size: 12px;
+	  color: var(--secondary-text-color);
+	  width: 55px;
+	  text-align: right;
+	}
+
+	.event-details {
+	  flex: 1 1 200px;
+	  min-width: 0;
+	}
+
+	.event-name {
+	  font-size: 15px;
+	  font-weight: 500;
+	  margin: 0 0 2px 0;
+	  white-space: nowrap;
+	  overflow: hidden;
+	  text-overflow: ellipsis;
+	}
+
+	.event-location,
+	.event-description {
+	  font-size: 13px;
+	  color: var(--secondary-text-color);
+	  margin: 2px 0 0 0;
+	}
+
+	.event-action {
+	  flex: 0 0 auto;
+	  align-self: center;
+	  margin-left: auto;
+	  margin-top: 5px;
+	}
+
+	.event-action input[type="submit"] {
+	  padding: 4px 8px;
+	  border: none;
+	  border-radius: 4px;
+	  font-size: 12px;
+	  font-weight: 500;
+	  cursor: pointer;
+	  color: white;
+	  width: 100px;
+	  text-align: center;
+	}
+
+	/* Event Status Colors */
+	.available { border-left-color: var(--status-available); }
+	.available .event-action input[type="submit"] { background-color: var(--status-available); }
+	.reservable { border-left-color: var(--status-reservable); }
+	.reservable .event-action input[type="submit"] { background-color: var(--status-reservable); }
+	.reserved { border-left-color: var(--status-reserved); }
+	.reserved .event-action input[type="submit"] { background-color: var(--status-reserved); }
+	.booked { border-left-color: var(--status-booked); }
+	.booked .event-action input[type="submit"] { background-color: var(--status-booked); }
+	.unavailable { border-left-color: var(--status-unavailable); }
+	.unavailable .event-action input[type="submit"] { background-color: var(--status-unavailable); }
+	.future-booking { border-left-color: var(--status-future-booking); }
+	.future-booking .event-action input[type="submit"] { background-color: var(--status-future-booking); }
+
+	/* Responsive Design */
+	@media (min-width: 768px) {
+	  .calendar {
+		max-width: 800px;
+		padding: 0 20px;
+	  }
+	  .event {
+		flex-wrap: nowrap;
+	  }
+	  .event-action {
+		margin-top: 0;
+	  }
+	  .event-details {
+		flex: 1 1 auto;
+		padding-right: 20px;
+	  }
+	}
+
+	/* HTMX Styles */
+	.htmx-indicator {
+	  display: none;
+	}
+	.htmx-request input {
+	  display: none;
+	}
+	.htmx-request .htmx-indicator {
+	  display: inline;
+	}
+</style>
 {{ end}}
