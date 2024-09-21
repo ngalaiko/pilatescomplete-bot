@@ -1,0 +1,26 @@
+{
+  "name": "Pilates Complete",
+  "short_name": "Pilates",
+  "description": "Schedule and book Pilates classes",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#007aff",
+  "background_color": "#f2f2f7",
+  "display": "standalone",
+  "start_url": "/",
+  "orientation": "portrait",
+  "categories": ["fitness", "health", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false
+}
