@@ -17,11 +17,15 @@
 		{{ end }}
 	" data-time="{{ .StartTime.Format "15:04" }}">
 	<div class="event-details">
-		<h2 class="event-name">{{ .DisplayName }}</h3>
-		<p class="event-location">{{ .LocationDisplayName }}</p>
+		<div class="event-header">
+			<h2 class="event-name">{{ .DisplayName }}</h3>
+			<p class="event-location">{{ .LocationDisplayName }}</p>
+		</div>
+
 		{{ with .DisplayNotice }}
-		<p class="event-description">{{ . }}</p>
+			<p class="event-description">{{ . }}</p>
 		{{ end }}
+		<p class="event-trainer">{{ .TrainerName }}</p>
 	</div>
 
 	{{ if and .Booking .Booking.IsBooked }}

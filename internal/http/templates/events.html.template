@@ -168,7 +168,13 @@
 	  text-overflow: ellipsis;
 	}
 
+	.event-header {
+	  display: flex;
+	  gap: 1ch;
+	}
+
 	.event-location,
+	.event-trainer,
 	.event-description {
 	  font-size: 13px;
 	  color: var(--secondary-text-color);
