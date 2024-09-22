@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pilatescomplete-bot/internal/bookings"
@@ -32,8 +33,9 @@ type Event struct {
 	// BookableFrom is a time from when event can be booked / reserved
 	BookableFrom time.Time
 	// Booking contains an active booking for the event
-	Booking *bookings.Booking
-	Color   string
+	Booking     *bookings.Booking
+	TrainerName string
+	Description string
 
 	PlacesTotal   int64
 	PlacesTaken   int64
@@ -70,40 +72,44 @@ func calculateBookableFrom(event *pilatescomplete.Event) time.Time {
 	return time.Date(ts.Year(), ts.Month(), ts.Day(), 7, 0, 1, 0, ts.Location())
 }
 
-func EventFromAPI(event *pilatescomplete.Event) (*Event, error) {
-	var booking *bookings.Booking
-	if event.ActivityBooking != nil {
-		var err error
-		booking, err = bookings.FromAPI(*event.ActivityBooking)
-		if err != nil {
-			return nil, err
+func eventsFromAPI(events *pilatescomplete.ListEventsResponse) ([]*Event, error) {
+	out := make([]*Event, len(events.Events))
+	for i := range events.Events {
+		event := events.Events[i]
+		var booking *bookings.Booking
+		if event.ActivityBooking != nil {
+			var err error
+			booking, err = bookings.FromAPI(*event.ActivityBooking)
+			if err != nil {
+				return nil, fmt.Errorf("events[%d]: %w", i, err)
+			}
 		}
-	}
-	return &Event{
-		ID:                  event.Activity.ID,
-		LocationDisplayName: event.ActivityLocation.Name,
-		DisplayNotice:       event.Activity.Notice,
-		DisplayName:         event.ActivityType.Name,
-		StartTime:           event.Activity.Start.Time(),
-		EndTime:             event.Activity.Start.Time().Add(minute * time.Duration(event.Activity.Length.Int64())),
-		Booking:             booking,
-		PlacesTotal:         event.Activity.Places.Int64(),
-		PlacesTaken:         event.Activity.BookingPlacesCount.Int64(),
-		ReservesTotal:       event.Activity.Reserves.Int64(),
-		ReservesTaken:       event.Activity.BookingReservesCount.Int64(),
-		BookableFrom:        calculateBookableFrom(event),
-		Color:               event.ActivityType.ColorNew,
-	}, nil
-}
-
-func EventsFromAPI(events []*pilatescomplete.Event) ([]*Event, error) {
-	out := make([]*Event, len(events))
-	for i := range events {
-		var err error
-		out[i], err = EventFromAPI(events[i])
-		if err != nil {
-			return nil, fmt.Errorf("events[%d]: %w", i, err)
+		out[i] = &Event{
+			ID:                  event.Activity.ID,
+			LocationDisplayName: event.ActivityLocation.Name,
+			DisplayNotice:       event.Activity.Notice,
+			DisplayName:         event.ActivityType.Name,
+			StartTime:           event.Activity.Start.Time(),
+			EndTime:             event.Activity.Start.Time().Add(minute * time.Duration(event.Activity.Length.Int64())),
+			Booking:             booking,
+			PlacesTotal:         event.Activity.Places.Int64(),
+			PlacesTaken:         event.Activity.BookingPlacesCount.Int64(),
+			ReservesTotal:       event.Activity.Reserves.Int64(),
+			ReservesTaken:       event.Activity.BookingReservesCount.Int64(),
+			BookableFrom:        calculateBookableFrom(event),
+			TrainerName:         userName(&event.User),
+			Description:         events.ActicityTypeDescriptions[event.Activity.ActivityTypeID],
 		}
 	}
 	return out, nil
+}
+
+func userName(user *pilatescomplete.User) string {
+	nonEmpty := []string{}
+	for _, part := range append(strings.Split(user.FirstName, " "), strings.Split(user.LastName, "")...) {
+		if part != "" {
+			nonEmpty = append(nonEmpty, part)
+		}
+	}
+	return strings.Join(nonEmpty, " ")
 }

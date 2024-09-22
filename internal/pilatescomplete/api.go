@@ -85,49 +85,23 @@ func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, err
 	return nil, ErrInvalidLoginOrPassword
 }
 
-func (c APIClient) GetEvent(ctx context.Context, id string) (*Event, error) {
-	values := url.Values{}
-	values.Set("activity", id)
-	req, err := http.NewRequest(
-		http.MethodGet,
-		"https://pilatescomplete.wondr.se/w_booking/activities/list?"+values.Encode(),
-		nil,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", userAgent)
-
-	if err := authenticateRequest(ctx, req); err != nil {
-		return nil, err
-	}
-	c.logger.Info("api request", "method", req.Method, "url", req.URL)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	type listEventsResponse struct {
-		Events []*Event `json:"activities"`
-	}
-
-	response := &listEventsResponse{}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-	if len(response.Events) == 0 {
-		return nil, ErrNotFound
-	}
-	return response.Events[0], nil
+type ListEventsInput struct {
+	ActivityID string
 }
 
-func (c APIClient) ListEvents(ctx context.Context) ([]*Event, error) {
+type ListEventsResponse struct {
+	Events                   []*Event          `json:"activities"`
+	ActicityTypeDescriptions map[string]string `json:"activityTypeDescriptions"`
+}
+
+func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*ListEventsResponse, error) {
+	values := url.Values{}
+	if input.ActivityID != "" {
+		values.Set("activity", input.ActivityID)
+	}
 	req, err := http.NewRequest(
 		http.MethodGet,
-		"https://pilatescomplete.wondr.se/w_booking/activities/list",
+		fmt.Sprintf("https://pilatescomplete.wondr.se/w_booking/activities/list?%s", values.Encode()),
 		nil,
 	)
 	if err != nil {
@@ -147,16 +121,12 @@ func (c APIClient) ListEvents(ctx context.Context) ([]*Event, error) {
 	}
 	defer resp.Body.Close()
 
-	type listEventsResponse struct {
-		Events []*Event `json:"activities"`
-	}
-
-	response := &listEventsResponse{}
+	response := &ListEventsResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return response.Events, nil
+	return response, nil
 }
 
 type ErrorResponse struct {

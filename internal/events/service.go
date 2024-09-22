@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/pilatescomplete-bot/internal/bookings"
@@ -25,42 +26,35 @@ func NewService(
 	}
 }
 
+var ErrNotFound = errors.New("not found")
+
 func (s *Service) GetEvent(ctx context.Context, id string) (*Event, error) {
-	token, ok := tokens.FromContext(ctx)
-	if !ok {
-		return nil, fmt.Errorf("token missing from context")
-	}
-	apiResponse, err := s.apiClient.GetEvent(ctx, id)
+	events, err := s.listEvents(ctx, pilatescomplete.ListEventsInput{
+		ActivityID: id,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("list events: %w", err)
+		return nil, err
 	}
-	event, err := EventFromAPI(apiResponse)
-	if err != nil {
-		return nil, fmt.Errorf("events from api: %w", err)
+	if len(events) == 0 {
+		return nil, ErrNotFound
 	}
-	bookingJobs, err := s.jobsStore.ListJobs(ctx, jobs.BookEventsByCredentialsIDEventIDs(token.CredentialsID, id))
-	if err != nil {
-		return nil, fmt.Errorf("list jobs: %w", err)
-	}
-	if len(bookingJobs) > 0 && bookingJobs[0].Status != jobs.StatusSucceded {
-		event.Booking = &bookings.Booking{
-			ID:     bookingJobs[0].ID,
-			Status: bookings.BookingStatusJobScheduled,
-		}
-	}
-	return event, nil
+	return events[0], nil
 }
 
 func (s *Service) ListEvents(ctx context.Context) ([]*Event, error) {
+	return s.listEvents(ctx, pilatescomplete.ListEventsInput{})
+}
+
+func (s *Service) listEvents(ctx context.Context, input pilatescomplete.ListEventsInput) ([]*Event, error) {
 	token, ok := tokens.FromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("token missing from context")
 	}
-	apiResponse, err := s.apiClient.ListEvents(ctx)
+	apiResponse, err := s.apiClient.ListEvents(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
 	}
-	events, err := EventsFromAPI(apiResponse)
+	events, err := eventsFromAPI(apiResponse)
 	if err != nil {
 		return nil, fmt.Errorf("events from api: %w", err)
 	}
