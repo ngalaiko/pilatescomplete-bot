@@ -97,16 +97,21 @@ func eventsFromAPI(events *pilatescomplete.ListEventsResponse) ([]*Event, error)
 			ReservesTotal:       event.Activity.Reserves.Int64(),
 			ReservesTaken:       event.Activity.BookingReservesCount.Int64(),
 			BookableFrom:        calculateBookableFrom(event),
-			TrainerName:         userName(&event.User),
+			TrainerName:         userName(event.User),
 			Description:         events.ActicityTypeDescriptions[event.Activity.ActivityTypeID],
 		}
 	}
 	return out, nil
 }
 
-func userName(user *pilatescomplete.User) string {
+func userName(users []pilatescomplete.User) string {
+	if len(users) == 0 {
+		return ""
+	}
+	user := users[0]
+	fmt.Println(user)
 	nonEmpty := []string{}
-	for _, part := range append(strings.Split(user.FirstName, " "), strings.Split(user.LastName, "")...) {
+	for _, part := range append(strings.Split(user.FirstName, " "), strings.Split(user.LastName, " ")...) {
 		if part != "" {
 			nonEmpty = append(nonEmpty, part)
 		}

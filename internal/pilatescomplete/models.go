@@ -78,7 +78,7 @@ type Event struct {
 	ActivityLocation  Location         `json:"ActivityLocation"`
 	ActivityType      ActivityType     `json:"ActivityType"`
 	Activity          Activity         `json:"Activity"`
-	User              User             `json:"User"`
+	User              []User           `json:"User"`
 	ActivityBooking   *ActivityBooking `json:"MyActivityBooking"`
 	ActivityBookingID string           `json:"activity_booking_id"`
 	Unbookable        bool             `json:"unbookable"`
