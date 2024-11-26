@@ -109,7 +109,6 @@ func userName(users []pilatescomplete.User) string {
 		return ""
 	}
 	user := users[0]
-	fmt.Println(user)
 	nonEmpty := []string{}
 	for _, part := range append(strings.Split(user.FirstName, " "), strings.Split(user.LastName, " ")...) {
 		if part != "" {
