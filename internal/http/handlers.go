@@ -42,6 +42,7 @@ func Handler(
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(logger, renderer, eventsService)))
 	mux.HandleFunc("GET /statistics/year/{year}/{$}", requireAuth(handleYearStatistics(logger, renderer, statisticsService)))
+	mux.HandleFunc("GET /statistics/year/{year}/month/{month}/{$}", requireAuth(handleYearMonthStatistics(logger, renderer, statisticsService)))
 	mux.HandleFunc("GET /statistics/{$}", requireAuth(handleStatistics()))
 	mux.HandleFunc("POST /{$}", handleLogin(logger, apiClient, credentialsStore, tokensStore))
 
@@ -276,6 +277,67 @@ func handleStatistics() http.HandlerFunc {
 	}
 }
 
+func handleYearMonthStatistics(
+	logger *slog.Logger,
+	renderer templates.Renderer,
+	statisticsService *statistics.Service,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		year, err := strconv.Atoi(parts[3])
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		month, err := strconv.Atoi(parts[5])
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if month < int(time.January) || month > int(time.December) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		stats, err := statisticsService.CalculateYearMonth(r.Context(), year, time.Month(month))
+		if err != nil {
+			logger.Error("calculate statistics by year", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		nextYear := year
+		nextMonth := month + 1
+		if month == int(time.December) {
+			nextYear++
+			nextMonth = int(time.January)
+		}
+
+		prevYear := year
+		prevMonth := month - 1
+		if month == int(time.January) {
+			prevYear--
+			prevMonth = int(time.December)
+		}
+
+		if err := renderer.RenderMonthStatisticsPage(w, templates.MonthStatisticsData{
+			Total:     stats.Total,
+			Year:      year,
+			Month:     int(month),
+			PrevYear:  prevYear,
+			PrevMonth: prevMonth,
+			NextYear:  nextYear,
+			NextMonth: nextMonth,
+			Weeks:     stats.Weeks,
+			Classes:   stats.Classes,
+		}); err != nil {
+			logger.Error("render month statistics page", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func handleYearStatistics(
 	logger *slog.Logger,
 	renderer templates.Renderer,
@@ -299,6 +361,7 @@ func handleYearStatistics(
 		if err := renderer.RenderYearStatisticsPage(w, templates.YearStatisticsData{
 			Total:   stats.Total,
 			Year:    year,
+			Month:   int(time.Now().Month()),
 			Months:  stats.Months,
 			Classes: stats.Classes,
 		}); err != nil {

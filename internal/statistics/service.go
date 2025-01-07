@@ -24,12 +24,60 @@ func NewService(
 	}
 }
 
-func (s *Service) CalculateYear(ctx context.Context, year int) (*YearStatistics, error) {
+func (s *Service) CalculateYearMonth(ctx context.Context, year int, month time.Month) (*Month, error) {
 	entries, err := s.calculateEnteries(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("calculate entries: %w", err)
 	}
-	stats := &YearStatistics{
+	stats := &Month{}
+	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	weekIndex := map[int]int{}
+	for d := monthStart; d.Before(monthStart.AddDate(0, 1, 0)); d = d.AddDate(0, 0, 1) {
+		_, week := d.ISOWeek()
+		if _, ok := weekIndex[week]; !ok {
+			weekIndex[week] = len(weekIndex)
+			stats.Weeks = append(stats.Weeks, Week{
+				Number: week,
+			})
+		}
+	}
+	classesByName := map[string]int{}
+	now := time.Now()
+	for _, entry := range entries {
+		if entry.Time.After(now) {
+			continue
+		}
+		if entry.Time.Year() != year {
+			continue
+		}
+		if entry.Time.Month() != month {
+			continue
+		}
+		_, week := entry.Time.ISOWeek()
+		stats.Total++
+		stats.Weeks[weekIndex[week]].Total++
+		classesByName[entry.DisplayName]++
+	}
+
+	for displayName, total := range classesByName {
+		stats.Classes = append(stats.Classes, Class{
+			Total:       total,
+			DisplayName: displayName,
+		})
+	}
+	slices.SortFunc(stats.Classes, func(a, b Class) int {
+		return b.Total - a.Total
+	})
+
+	return stats, nil
+}
+
+func (s *Service) CalculateYear(ctx context.Context, year int) (*Year, error) {
+	entries, err := s.calculateEnteries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("calculate entries: %w", err)
+	}
+	stats := &Year{
 		Months: make([]int, 12),
 	}
 	classesByName := map[string]int{}

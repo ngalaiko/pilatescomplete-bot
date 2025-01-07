@@ -2,15 +2,15 @@
 <nav class="nav-header">
 	<div class="nav-container">
 		<a href="/" class="nav-link">Schedule</a>
-		<a href="/statistics/year/{{ .Year }}/" class="nav-link active">Statistics</a>
+		<a href="/statistics/" class="nav-link active">Statistics</a>
 	</div>
 </nav>
 
 <main id="statistics-page">
 	<div class="year-nav">
-		<a href="/statistics/year/{{ .Year | dec }}/" class="year-nav-btn">←</a>
-		<span class="year-nav-text">{{ .Year }}</span>
-		<a href="/statistics/year/{{ .Year | inc }}/" class="year-nav-btn">→</a>
+		<a href="/statistics/year/{{ .PrevYear }}/month/{{ .PrevMonth }}" class="year-nav-btn">←</a>
+		<span class="year-nav-text">{{ .Month | monthName }} {{ .Year }}</span>
+		<a href="/statistics/year/{{ .NextYear }}/month/{{ .NextMonth }}" class="year-nav-btn">→</a>
 	</div>
 
 	<div class="header">
@@ -20,9 +20,9 @@
 	<div class="chart-container">
 		<table>
 			<tbody>
-				{{ range $i, $total := .Months }}
-					<tr data-month="{{ $i | inc | shortMonthName }}">
-						<td style="--size: calc({{ $total }} / {{ $.Total }} )" data-value="{{ $total }}"></td>
+				{{ range .Weeks }}
+					<tr data-month="{{ .Number }}">
+						<td style="--size: calc({{ .Total }} / {{ $.Total }} )" data-value="{{ .Total }}"></td>
 					</tr>
 				{{ end }}
 			</tbody>
@@ -30,8 +30,8 @@
 	</div>
 
 	<div class="time-nav">
-		<a href="/statistics/year/{{ .Year }}/month/{{ .Month }}" class="time-btn">M</a>
-		<a href="/statistics/year/{{ .Year }}/" class="time-btn active">Y</a>
+		<a href="/statistics/year/{{ .Year }}/month/{{ .Month }}" class="time-btn active">M</a>
+		<a href="/statistics/year/{{ .Year }}/" class="time-btn">Y</a>
 	</div>
 
 	<div class="stats">

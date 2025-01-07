@@ -5,8 +5,20 @@ type Class struct {
 	Total       int
 }
 
-type YearStatistics struct {
+type Year struct {
 	Total   int
 	Months  []int
 	Classes []Class
+}
+
+type Month struct {
+	Total   int
+	Weeks   []Week
+	Classes []Class
+}
+
+type Week struct {
+	Total int
+	// Number is a week number
+	Number int
 }
