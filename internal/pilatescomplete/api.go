@@ -260,3 +260,47 @@ func authenticateRequest(ctx context.Context, req *http.Request) error {
 	req.Header.Set("Cookie", fmt.Sprintf("%s=%s", cookieName, token.Token))
 	return nil
 }
+
+type ListNotificationsInput struct{}
+
+type NotificationResponse struct {
+	Notification Notification `json:"Notification"`
+}
+
+type ListNotificationsResponse struct {
+	Notification []*NotificationResponse `json:"notification"`
+}
+
+func (c APIClient) ListNotifications(ctx context.Context, input ListNotificationsInput) (*ListNotificationsResponse, error) {
+	values := url.Values{}
+	values.Set("sort", "Notification.created")
+	values.Set("direction", "ASC")
+	req, err := http.NewRequest(
+		http.MethodGet,
+		fmt.Sprintf("https://pilatescomplete.wondr.se/notifications/list?%s", values.Encode()),
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+
+	if err := authenticateRequest(ctx, req); err != nil {
+		return nil, err
+	}
+	c.logger.Info("api request", "method", req.Method, "url", req.URL)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	response := &ListNotificationsResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return response, nil
+}

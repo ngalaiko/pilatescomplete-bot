@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -19,6 +21,7 @@ import (
 	"github.com/pilatescomplete-bot/internal/http/templates"
 	"github.com/pilatescomplete-bot/internal/jobs"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/statistics"
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
@@ -33,10 +36,13 @@ func Handler(
 	eventsService *events.Service,
 	scheduler *jobs.Scheduler,
 	calendarsService *calendars.Service,
+	statisticsService *statistics.Service,
 ) http.HandlerFunc {
 	requireAuth := WithAuthentication(logger, authenticationService, credentialsStore)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(logger, renderer, eventsService)))
+	mux.HandleFunc("GET /statistics/year/{year}/{$}", requireAuth(handleYearStatistics(logger, renderer, statisticsService)))
+	mux.HandleFunc("GET /statistics/{$}", requireAuth(handleStatistics()))
 	mux.HandleFunc("POST /{$}", handleLogin(logger, apiClient, credentialsStore, tokensStore))
 
 	mux.HandleFunc("GET /login", handleAuthenticationPage(logger, renderer))
@@ -264,6 +270,45 @@ func handleAuthenticationPage(logger *slog.Logger, renderer templates.Renderer) 
 	}
 }
 
+func handleStatistics() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, fmt.Sprintf("/statistics/year/%d/", time.Now().Year()), http.StatusTemporaryRedirect)
+	}
+}
+
+func handleYearStatistics(
+	logger *slog.Logger,
+	renderer templates.Renderer,
+	statisticsService *statistics.Service,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		year, err := strconv.Atoi(parts[3])
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		stats, err := statisticsService.CalculateYear(r.Context(), year)
+		if err != nil {
+			logger.Error("calculate statistics by year", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if err := renderer.RenderYearStatisticsPage(w, templates.YearStatisticsData{
+			Total:   stats.Total,
+			Year:    year,
+			Months:  stats.Months,
+			Classes: stats.Classes,
+		}); err != nil {
+			logger.Error("render year statistics page", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func handleListEvents(
 	logger *slog.Logger,
 	renderer templates.Renderer,
@@ -272,7 +317,7 @@ func handleListEvents(
 	return func(w http.ResponseWriter, r *http.Request) {
 		events, err := eventsService.ListEvents(r.Context())
 		if err != nil {
-			logger.Error("parse form", "error", err)
+			logger.Error("list events", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

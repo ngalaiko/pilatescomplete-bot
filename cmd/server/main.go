@@ -23,7 +23,9 @@ import (
 	"github.com/pilatescomplete-bot/internal/jobs"
 	"github.com/pilatescomplete-bot/internal/keys"
 	"github.com/pilatescomplete-bot/internal/migrations"
+	"github.com/pilatescomplete-bot/internal/notifications"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
+	"github.com/pilatescomplete-bot/internal/statistics"
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
@@ -78,6 +80,8 @@ func main() {
 	scheduler := jobs.NewScheduler(logger, jobsStore, apiClient, authenticationService)
 	calendarsStore := calendars.NewStore(db)
 	calendarsService := calendars.NewService(calendarsStore, authenticationService, eventsService)
+	notificationsService := notifications.NewService(apiClient)
+	statisticsService := statistics.NewService(notificationsService)
 	if err := scheduler.Init(ctx); err != nil {
 		log.Fatalf("[ERROR] init scheduler: %s", err)
 	}
@@ -92,6 +96,7 @@ func main() {
 		eventsService,
 		scheduler,
 		calendarsService,
+		statisticsService,
 	)
 
 	httpServer := http.Server{

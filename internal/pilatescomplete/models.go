@@ -155,3 +155,17 @@ type User struct {
 	ID        string `json:"id"`
 	ImageSrc  string `json:"image_src"`
 }
+
+type NotificationType string
+
+const (
+	NoticicationTypeUnbooked = "WBOOKING_CONFIRMATION_UNBOOK"
+	NoticicationTypeBooked   = "WBOOKING_CONFIRMATION"
+)
+
+type Notification struct {
+	ID           string           `json:"id"`
+	Type         NotificationType `json:"type"`
+	Notification string           `json:"notification"`
+	Created      DateTime         `json:"created"`
+}

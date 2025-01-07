@@ -1,4 +1,11 @@
 {{ define "main" }}
+<nav class="nav-header">
+	<div class="nav-container">
+		<a href="/" class="nav-link active">Schedule</a>
+		<a href="/statistics/" class="nav-link">Statistics</a>
+	</div>
+</nav>
+
 <main class="calendar">
 	{{ $day := -1 }}
 
@@ -242,5 +249,40 @@
 	.htmx-request .htmx-indicator {
 	  display: inline;
 	}
+
+	.nav-header {
+      background-color: white;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 15px;
+    }
+    
+    .nav-container {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      gap: 20px;
+    }
+    
+    .nav-link {
+      color: var(--text-color);
+      text-decoration: none;
+      padding: 15px 0;
+      font-weight: 500;
+      position: relative;
+    }
+    
+    .nav-link.active {
+      color: var(--primary-blue);
+    }
+    
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--primary-blue);
+    }
 </style>
 {{ end}}
