@@ -15,10 +15,24 @@ import (
 	"github.com/pilatescomplete-bot/internal/statistics"
 )
 
+type WeekStatisticsData struct {
+	Total    int
+	Year     int
+	Month    int
+	Week     int
+	PrevYear int
+	PrevWeek int
+	NextYear int
+	NextWeek int
+	Days     []statistics.Day
+	Classes  []statistics.Class
+}
+
 type MonthStatisticsData struct {
 	Total     int
 	Year      int
 	Month     int
+	Week      int
 	PrevYear  int
 	PrevMonth int
 	NextYear  int
@@ -31,6 +45,7 @@ type YearStatisticsData struct {
 	Total   int
 	Year    int
 	Month   int
+	Week    int
 	Months  []int
 	Classes []statistics.Class
 }
@@ -47,6 +62,7 @@ type Renderer interface {
 	RenderLoginPage(io.Writer, LoginData) error
 	RenderYearStatisticsPage(io.Writer, YearStatisticsData) error
 	RenderMonthStatisticsPage(io.Writer, MonthStatisticsData) error
+	RenderWeekStatisticsPage(io.Writer, WeekStatisticsData) error
 }
 
 var _ Renderer = &FilesystemTemplates{}
@@ -72,6 +88,18 @@ func (e *FilesystemTemplates) RenderLoginPage(w io.Writer, data LoginData) error
 		return fmt.Errorf("parse login template: %w", err)
 	}
 	return loginTemplate.Execute(w, data)
+}
+
+func (e *FilesystemTemplates) RenderWeekStatisticsPage(w io.Writer, data WeekStatisticsData) error {
+	templates, err := template.New("").Funcs(functions).ParseFS(e.filesystem, "*.template")
+	if err != nil {
+		return fmt.Errorf("parse fs: %w", err)
+	}
+	template, err := templates.Lookup("_layout.html.template").ParseFS(e.filesystem, "week_statistics.html.template")
+	if err != nil {
+		return fmt.Errorf("parse template: %w", err)
+	}
+	return template.Execute(w, data)
 }
 
 func (e *FilesystemTemplates) RenderMonthStatisticsPage(w io.Writer, data MonthStatisticsData) error {
@@ -126,6 +154,7 @@ type EmbedTemplates struct {
 	eventsTemplate          *template.Template
 	yearStatisticsTemplate  *template.Template
 	monthStatisticsTemplate *template.Template
+	weekStatisticsTemplate  *template.Template
 }
 
 //go:embed *.template
@@ -151,10 +180,11 @@ var functions = map[string]interface{}{
 	"fraction": func(a, b int) float64 {
 		return math.Trunc(float64(a)/float64(b)*1000) / 10
 	},
-	"inc":            func(value int) int { return value + 1 },
-	"dec":            func(value int) int { return value - 1 },
-	"shortMonthName": func(i int) string { return time.Month(i).String()[:3] },
-	"monthName":      func(i int) string { return time.Month(i).String() },
+	"inc":              func(value int) int { return value + 1 },
+	"dec":              func(value int) int { return value - 1 },
+	"shortMonthName":   func(i int) string { return time.Month(i).String()[:3] },
+	"shortWeekdayName": func(i int) string { return time.Weekday(i).String()[:3] },
+	"monthName":        func(i int) string { return time.Month(i).String() },
 }
 
 func NewEmbedTemplates() *EmbedTemplates {
@@ -169,6 +199,7 @@ func NewEmbedTemplates() *EmbedTemplates {
 		eventTemplate:           templates.Lookup("event"),
 		yearStatisticsTemplate:  template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "year_statistics.html.template")),
 		monthStatisticsTemplate: template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "month_statistics.html.template")),
+		weekStatisticsTemplate:  template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "week_statistics.html.template")),
 	}
 }
 
@@ -190,4 +221,8 @@ func (e *EmbedTemplates) RenderYearStatisticsPage(w io.Writer, data YearStatisti
 
 func (e *EmbedTemplates) RenderMonthStatisticsPage(w io.Writer, data MonthStatisticsData) error {
 	return e.monthStatisticsTemplate.Execute(w, data)
+}
+
+func (e *EmbedTemplates) RenderWeekStatisticsPage(w io.Writer, data WeekStatisticsData) error {
+	return e.weekStatisticsTemplate.Execute(w, data)
 }

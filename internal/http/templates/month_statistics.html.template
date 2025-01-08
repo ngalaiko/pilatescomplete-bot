@@ -2,7 +2,7 @@
 <nav class="nav-header">
 	<div class="nav-container">
 		<a href="/" class="nav-link">Schedule</a>
-		<a href="/statistics/" class="nav-link active">Statistics</a>
+		<a href="/statistics/year/{{ .Year }}/month/{{ .Month }}" class="nav-link active">Statistics</a>
 	</div>
 </nav>
 
@@ -21,7 +21,7 @@
 		<table>
 			<tbody>
 				{{ range .Weeks }}
-					<tr data-month="{{ .Number }}">
+					<tr data-month="W{{ .Number }}">
 						<td style="--size: calc({{ .Total }} / {{ $.Total }} )" data-value="{{ .Total }}"></td>
 					</tr>
 				{{ end }}
@@ -30,6 +30,7 @@
 	</div>
 
 	<div class="time-nav">
+		<a href="/statistics/year/{{ .Year }}/week/{{ .Week }}" class="time-btn">W</a>
 		<a href="/statistics/year/{{ .Year }}/month/{{ .Month }}" class="time-btn active">M</a>
 		<a href="/statistics/year/{{ .Year }}/" class="time-btn">Y</a>
 	</div>

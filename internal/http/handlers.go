@@ -43,6 +43,7 @@ func Handler(
 	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(logger, renderer, eventsService)))
 	mux.HandleFunc("GET /statistics/year/{year}/{$}", requireAuth(handleYearStatistics(logger, renderer, statisticsService)))
 	mux.HandleFunc("GET /statistics/year/{year}/month/{month}/{$}", requireAuth(handleYearMonthStatistics(logger, renderer, statisticsService)))
+	mux.HandleFunc("GET /statistics/year/{year}/week/{week}/{$}", requireAuth(handleYearWeekStatistics(logger, renderer, statisticsService)))
 	mux.HandleFunc("GET /statistics/{$}", requireAuth(handleStatistics()))
 	mux.HandleFunc("POST /{$}", handleLogin(logger, apiClient, credentialsStore, tokensStore))
 
@@ -277,6 +278,53 @@ func handleStatistics() http.HandlerFunc {
 	}
 }
 
+func handleYearWeekStatistics(
+	logger *slog.Logger,
+	renderer templates.Renderer,
+	statisticsService *statistics.Service,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		year, err := strconv.Atoi(parts[3])
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		week, err := strconv.Atoi(parts[5])
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		stats, err := statisticsService.CalculateYearWeek(r.Context(), year, week)
+		if err != nil {
+			logger.Error("calculate statistics by week", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		nextYear, nextWeek := getNextISOWeek(year, week)
+		prevYear, prevWeek := getPreviousISOWeek(year, week)
+
+		if err := renderer.RenderWeekStatisticsPage(w, templates.WeekStatisticsData{
+			Total:    stats.Total,
+			Year:     year,
+			Month:    int(getMonthFromISOWeek(year, week)),
+			Week:     week,
+			PrevYear: prevYear,
+			PrevWeek: prevWeek,
+			NextYear: nextYear,
+			NextWeek: nextWeek,
+			Days:     stats.Days,
+			Classes:  stats.Classes,
+		}); err != nil {
+			logger.Error("render month statistics page", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func handleYearMonthStatistics(
 	logger *slog.Logger,
 	renderer templates.Renderer,
@@ -320,10 +368,14 @@ func handleYearMonthStatistics(
 			prevMonth = int(time.December)
 		}
 
+		yearMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+		_, week := yearMonth.ISOWeek()
+
 		if err := renderer.RenderMonthStatisticsPage(w, templates.MonthStatisticsData{
 			Total:     stats.Total,
 			Year:      year,
 			Month:     int(month),
+			Week:      week,
 			PrevYear:  prevYear,
 			PrevMonth: prevMonth,
 			NextYear:  nextYear,
@@ -361,7 +413,8 @@ func handleYearStatistics(
 		if err := renderer.RenderYearStatisticsPage(w, templates.YearStatisticsData{
 			Total:   stats.Total,
 			Year:    year,
-			Month:   int(time.Now().Month()),
+			Month:   int(time.January),
+			Week:    1,
 			Months:  stats.Months,
 			Classes: stats.Classes,
 		}); err != nil {
@@ -456,4 +509,55 @@ func handleLogin(
 
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
+}
+
+func getNextISOWeek(year int, week int) (nextYear int, nextWeek int) {
+	// Create a time.Time for Monday of the given ISO week
+	// Jan 4th is always in week 1 of its ISO year
+	jan4 := time.Date(year, time.January, 4, 0, 0, 0, 0, time.UTC)
+	// Get the Monday of week 1
+	_, w1 := jan4.ISOWeek()
+	daysToAdd := (week - w1) * 7
+	targetDate := jan4.AddDate(0, 0, daysToAdd)
+
+	// Add 7 days to get to next week
+	nextDate := targetDate.AddDate(0, 0, 7)
+
+	// Get the ISO week number for the next week
+	nextYear, nextWeek = nextDate.ISOWeek()
+
+	return nextYear, nextWeek
+}
+
+func getPreviousISOWeek(year int, week int) (prevYear int, prevWeek int) {
+	// Create a time.Time for Monday of the given ISO week
+	// Jan 4th is always in week 1 of its ISO year
+	jan4 := time.Date(year, time.January, 4, 0, 0, 0, 0, time.UTC)
+	// Get the Monday of week 1
+	_, w1 := jan4.ISOWeek()
+	daysToAdd := (week - w1) * 7
+	targetDate := jan4.AddDate(0, 0, daysToAdd)
+
+	// Subtract 7 days to get to previous week
+	prevDate := targetDate.AddDate(0, 0, -7)
+
+	// Get the ISO week number for the previous week
+	prevYear, prevWeek = prevDate.ISOWeek()
+
+	return prevYear, prevWeek
+}
+
+func getMonthFromISOWeek(year int, week int) time.Month {
+	// Create a time.Time for Monday of the given ISO week
+	// Jan 4th is always in week 1 of its ISO year
+	jan4 := time.Date(year, time.January, 4, 0, 0, 0, 0, time.UTC)
+	// Get the Monday of week 1
+	_, w1 := jan4.ISOWeek()
+	daysToAdd := (week - w1) * 7
+
+	// Get the date of Monday in the requested week
+	targetDate := jan4.AddDate(0, 0, daysToAdd)
+
+	// Return the month
+	return targetDate.Month()
 }
