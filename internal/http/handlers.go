@@ -337,49 +337,31 @@ func handleYearMonthStatistics(
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		month, err := strconv.Atoi(parts[5])
+		month, err := parseMonth(parts[5])
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if month < int(time.January) || month > int(time.December) {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 
-		stats, err := statisticsService.CalculateYearMonth(r.Context(), year, time.Month(month))
+		stats, err := statisticsService.CalculateYearMonth(r.Context(), year, month)
 		if err != nil {
 			logger.Error("calculate statistics by year", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		nextYear := year
-		nextMonth := month + 1
-		if month == int(time.December) {
-			nextYear++
-			nextMonth = int(time.January)
-		}
-
-		prevYear := year
-		prevMonth := month - 1
-		if month == int(time.January) {
-			prevYear--
-			prevMonth = int(time.December)
-		}
-
-		yearMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-		_, week := yearMonth.ISOWeek()
-
+		nextYear, nextMonth := getNextMonth(year, month)
+		prevYear, prevMonth := getPreviousMonth(year, month)
+		week := getFirstWeekOfMonth(year, month)
 		if err := renderer.RenderMonthStatisticsPage(w, templates.MonthStatisticsData{
 			Total:     stats.Total,
 			Year:      year,
 			Month:     int(month),
 			Week:      week,
 			PrevYear:  prevYear,
-			PrevMonth: prevMonth,
+			PrevMonth: int(prevMonth),
 			NextYear:  nextYear,
-			NextMonth: nextMonth,
+			NextMonth: int(nextMonth),
 			Weeks:     stats.Weeks,
 			Classes:   stats.Classes,
 		}); err != nil {
@@ -511,6 +493,22 @@ func handleLogin(
 	}
 }
 
+func getPreviousMonth(year int, month time.Month) (int, time.Month) {
+	if month == time.January {
+		return year - 1, time.December
+	} else {
+		return year, month - 1
+	}
+}
+
+func getNextMonth(year int, month time.Month) (int, time.Month) {
+	if month == time.December {
+		return year + 1, time.January
+	} else {
+		return year, month + 1
+	}
+}
+
 func getNextISOWeek(year int, week int) (nextYear int, nextWeek int) {
 	// Create a time.Time for Monday of the given ISO week
 	// Jan 4th is always in week 1 of its ISO year
@@ -560,4 +558,21 @@ func getMonthFromISOWeek(year int, week int) time.Month {
 
 	// Return the month
 	return targetDate.Month()
+}
+
+func getFirstWeekOfMonth(year int, month time.Month) int {
+	yearMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	_, week := yearMonth.ISOWeek()
+	return week
+}
+
+func parseMonth(value string) (time.Month, error) {
+	month, err := strconv.Atoi(value)
+	if err != nil {
+		return -1, err
+	}
+	if month < int(time.January) || month > int(time.December) {
+		return -1, fmt.Errorf("invalid month number: %d", month)
+	}
+	return time.Month(month), nil
 }
