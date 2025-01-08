@@ -330,6 +330,14 @@ func handleYearMonthStatistics(
 	renderer templates.Renderer,
 	statisticsService *statistics.Service,
 ) http.HandlerFunc {
+	firstNonEmptyWeek := func(weeks []statistics.Week) int {
+		for _, week := range weeks {
+			if week.Total > 0 {
+				return week.Number
+			}
+		}
+		return weeks[len(weeks)-1].Number
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		year, err := strconv.Atoi(parts[3])
@@ -352,12 +360,11 @@ func handleYearMonthStatistics(
 
 		nextYear, nextMonth := getNextMonth(year, month)
 		prevYear, prevMonth := getPreviousMonth(year, month)
-		week := getFirstWeekOfMonth(year, month)
 		if err := renderer.RenderMonthStatisticsPage(w, templates.MonthStatisticsData{
 			Total:     stats.Total,
 			Year:      year,
 			Month:     int(month),
-			Week:      week,
+			Week:      firstNonEmptyWeek(stats.Weeks),
 			PrevYear:  prevYear,
 			PrevMonth: int(prevMonth),
 			NextYear:  nextYear,
@@ -377,6 +384,14 @@ func handleYearStatistics(
 	renderer templates.Renderer,
 	statisticsService *statistics.Service,
 ) http.HandlerFunc {
+	firstNonEmptyMonth := func(months []statistics.Month) int {
+		for _, month := range months {
+			if month.Total > 0 {
+				return month.Number
+			}
+		}
+		return months[len(months)-1].Number
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		year, err := strconv.Atoi(parts[3])
@@ -395,7 +410,7 @@ func handleYearStatistics(
 		if err := renderer.RenderYearStatisticsPage(w, templates.YearStatisticsData{
 			Total:   stats.Total,
 			Year:    year,
-			Month:   int(time.January),
+			Month:   firstNonEmptyMonth(stats.Months),
 			Week:    1,
 			Months:  stats.Months,
 			Classes: stats.Classes,
@@ -558,12 +573,6 @@ func getMonthFromISOWeek(year int, week int) time.Month {
 
 	// Return the month
 	return targetDate.Month()
-}
-
-func getFirstWeekOfMonth(year int, month time.Month) int {
-	yearMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	_, week := yearMonth.ISOWeek()
-	return week
 }
 
 func parseMonth(value string) (time.Month, error) {
