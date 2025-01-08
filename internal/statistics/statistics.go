@@ -5,9 +5,14 @@ type Class struct {
 	Total       int
 }
 
+type Month struct {
+	Total  int
+	Number int
+}
+
 type YearStatistics struct {
 	Total   int
-	Months  []int
+	Months  []Month
 	Classes []Class
 }
 

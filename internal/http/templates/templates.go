@@ -46,7 +46,7 @@ type YearStatisticsData struct {
 	Year    int
 	Month   int
 	Week    int
-	Months  []int
+	Months  []statistics.Month
 	Classes []statistics.Class
 }
 

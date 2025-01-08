@@ -126,8 +126,17 @@ func (s *Service) CalculateYear(ctx context.Context, year int) (*YearStatistics,
 	if err != nil {
 		return nil, fmt.Errorf("calculate entries: %w", err)
 	}
-	stats := &YearStatistics{
-		Months: make([]int, 12),
+	stats := &YearStatistics{}
+	yearStart := time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC)
+	monthIndex := map[int]int{}
+	for d := yearStart; d.Before(yearStart.AddDate(1, 0, 0)); d = d.AddDate(0, 0, 1) {
+		month := d.Month()
+		if _, ok := monthIndex[int(month)]; !ok {
+			monthIndex[int(month)] = len(monthIndex)
+			stats.Months = append(stats.Months, Month{
+				Number: int(month),
+			})
+		}
 	}
 	classesByName := map[string]int{}
 	now := time.Now()
@@ -139,7 +148,7 @@ func (s *Service) CalculateYear(ctx context.Context, year int) (*YearStatistics,
 			continue
 		}
 		stats.Total++
-		stats.Months[entry.Time.Month()-1]++
+		stats.Months[monthIndex[int(entry.Time.Month())]].Total++
 		classesByName[entry.DisplayName]++
 	}
 	for displayName, total := range classesByName {

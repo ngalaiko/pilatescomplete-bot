@@ -29,7 +29,6 @@
 		</table>
 	</div>
 
-
 	<div class="time-nav">
 		<a href="/statistics/year/{{ .Year }}/week/{{ .Week }}" class="time-btn active">W</a>
 		<a href="/statistics/year/{{ .Year }}/month/{{ .Month }}" class="time-btn">M</a>
