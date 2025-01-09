@@ -1,4 +1,4 @@
-* store past events in the calendar
+* use notifications to display past events
 * display errors in template
 * validate cookie with api
 * csrf
