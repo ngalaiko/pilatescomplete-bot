@@ -1,0 +1,170 @@
+/* Base Variables */
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  
+  /* Colors */
+  --background-color: #f2f2f7;
+  --text-color: #1c1c1e;
+  --border-color: #c6c6c8;
+  --secondary-text-color: #8e8e93;
+  
+  /* Brand Colors */
+  --primary-blue: #007aff;
+  --primary-blue-hover: #0056b3;
+  --primary-blue-active: #004080;
+  
+  /* Status Colors */
+  --status-available: #34c759;
+  --status-reservable: #ff9500;
+  --status-reserved: #5856d6;
+  --status-booked: #007aff;
+  --status-unavailable: #ff3b30;
+  --status-future-booking: #64d2ff;
+  
+  /* Chart Colors */
+  --chart-color: var(--primary-blue);
+  
+  /* Layout */
+  --max-content-width: 800px;
+  --content-padding: 20px;
+  --border-radius-lg: 12px;
+  --border-radius-md: 8px;
+  --border-radius-sm: 4px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Base Elements */
+body {
+  font-family: var(--font-family);
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+/* Layout */
+.container {
+  max-width: var(--max-content-width);
+  margin: 0 auto;
+  padding: 0 var(--content-padding);
+}
+
+/* Typography */
+.text-secondary {
+  color: var(--secondary-text-color);
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+/* Navigation */
+.nav-header {
+  background-color: white;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 15px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-container {
+  max-width: var(--max-content-width);
+  margin: 0 auto;
+  display: flex;
+  gap: 20px;
+}
+
+.nav-link {
+  color: var(--text-color);
+  text-decoration: none;
+  padding: 15px 0;
+  font-weight: 500;
+  position: relative;
+}
+
+.nav-link.active {
+  color: var(--primary-blue);
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--primary-blue);
+}
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-content {
+  padding: 20px;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border-radius: var(--border-radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--primary-blue);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-blue-hover);
+}
+
+.btn-primary:active {
+  background-color: var(--primary-blue-active);
+}
+
+.btn-outline {
+  background: white;
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.btn-outline.active {
+  background: var(--primary-blue);
+  color: white;
+  border-color: var(--primary-blue);
+}
+
+/* Media Queries */
+@media (max-width: 600px) {
+  .container {
+    padding: 0 15px;
+  }
+}

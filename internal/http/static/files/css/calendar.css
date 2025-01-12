@@ -1,0 +1,171 @@
+/* Calendar Layout */
+.calendar {
+  display: flex;
+  flex-direction: column;
+  max-width: var(--max-content-width);
+  margin: 0 auto;
+}
+
+/* Calendar Header */
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.calendar-header form {
+  margin: 0;
+}
+
+/* Day Styles */
+.day {
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 0;
+}
+
+.day-header {
+  font-size: 17px;
+  font-weight: bold;
+  padding: 0 15px;
+  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+  background-color: rgba(242, 242, 247, 0.9);
+  z-index: 1;
+}
+
+/* Events Container */
+.events {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Event Item */
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 5px 15px;
+  border-left: 2px solid;
+  margin-left: 60px;
+  position: relative;
+}
+
+.event::before {
+  content: attr(data-time);
+  position: absolute;
+  left: -65px;
+  top: 5px;
+  font-size: 12px;
+  color: var(--secondary-text-color);
+  width: 55px;
+  text-align: right;
+}
+
+/* Event Details */
+.event-details {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.event-header {
+  display: flex;
+  gap: 1ch;
+}
+
+.event-name {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-location,
+.event-trainer,
+.event-description {
+  font-size: 13px;
+  color: var(--secondary-text-color);
+  margin: 2px 0 0 0;
+}
+
+/* Event Actions */
+.event-action {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-left: auto;
+  margin-top: 5px;
+}
+
+.event-action input[type="submit"] {
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: white;
+  width: 100px;
+  text-align: center;
+}
+
+/* Event Status Styles */
+.event.available { border-left-color: var(--status-available); }
+.event.available .event-action input[type="submit"] { background-color: var(--status-available); }
+
+.event.reservable { border-left-color: var(--status-reservable); }
+.event.reservable .event-action input[type="submit"] { background-color: var(--status-reservable); }
+
+.event.reserved { border-left-color: var(--status-reserved); }
+.event.reserved .event-action input[type="submit"] { background-color: var(--status-reserved); }
+
+.event.booked { border-left-color: var(--status-booked); }
+.event.booked .event-action input[type="submit"] { background-color: var(--status-booked); }
+
+.event.unavailable { border-left-color: var(--status-unavailable); }
+.event.unavailable .event-action input[type="submit"] { background-color: var(--status-unavailable); }
+
+.event.future-booking { border-left-color: var(--status-future-booking); }
+.event.future-booking .event-action input[type="submit"] { background-color: var(--status-future-booking); }
+
+/* HTMX Styles */
+.htmx-indicator {
+  display: none;
+}
+
+.htmx-request input {
+  display: none;
+}
+
+.htmx-request .htmx-indicator {
+  display: inline;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+  .calendar {
+    padding: 0 20px;
+  }
+  
+  .event {
+    flex-wrap: nowrap;
+  }
+  
+  .event-action {
+    margin-top: 0;
+  }
+  
+  .event-details {
+    flex: 1 1 auto;
+    padding-right: 20px;
+  }
+}
