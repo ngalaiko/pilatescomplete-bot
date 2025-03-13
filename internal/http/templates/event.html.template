@@ -61,20 +61,6 @@
 			<input type="submit" value="Scheduled ⌛" />
 			<input class="htmx-indicator" type="submit" disabled value="Loading" />
 		</form>
-	{{ else if (now.Before .BookableFrom) }}
-		<form
-			class="event-action"
-			hx-post="/events/{{ .ID }}/jobs"
-			hx-select-oob="#event-{{ .ID }}"
-			hx-swap="outerHTML"
-		>
-			{{ if .Bookable }}
-				<input type="submit" value="Book" />
-			{{ else if .Reservable }}
-				<input type="submit" value="Reserve" />
-			{{ end }}
-			<input class="htmx-indicator" type="submit" disabled value="Loading" />
-		</form>
 	{{ else }}
 		<form 
 			class="event-action" 
