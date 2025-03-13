@@ -23,6 +23,31 @@ type ActivityBooking struct {
 	Position  Int64String           `json:"position"`
 }
 
+type NullableInt64String struct {
+	Int64String
+	valid bool
+}
+
+func (u NullableInt64String) Valid() bool {
+	return u.valid
+}
+
+func (u *NullableInt64String) UnmarshalJSON(data []byte) error {
+	if string(data) == "\"\"" {
+		u.valid = false
+		return nil
+	}
+	u.valid = true
+	return u.Int64String.UnmarshalJSON(data)
+}
+
+func (u NullableInt64String) Int64() int64 {
+	if !u.valid {
+		return 0
+	}
+	return u.Int64String.Int64()
+}
+
 // Int64String is a srting that contains an integer number.
 type Int64String int64
 
@@ -121,32 +146,32 @@ type Location struct {
 }
 
 type ActivityType struct {
-	ID                        string      `json:"id"`
-	Name                      string      `json:"name"`
-	Color                     string      `json:"color"`
-	ColorNew                  string      `json:"color_new"`
-	ColorFixed                bool        `json:"color_fixed"`
-	ColorShade                any         `json:"color_shade"`
-	BookableTimes             bool        `json:"bookable_times"`
-	BookableTimeEvery         string      `json:"bookable_time_every"`
-	BookableLengths           string      `json:"bookable_lengths"`
-	BookableSimultaneously    bool        `json:"bookable_simultaneously"`
-	BookableBlockUserTimes    bool        `json:"bookable_block_user_times"`
-	UseBookableTimeEveryStart bool        `json:"use_bookable_time_every_start"`
-	BookingTryItText          string      `json:"booking_try_it_text"`
-	LateBookMinutes           Int64String `json:"late_book_minutes"`
-	LateUnbookMinutes         Int64String `json:"late_unbook_minutes"`
-	DaysInFutureBook          Int64String `json:"days_in_future_book"`
-	MultipleParticipants      bool        `json:"multiple_participants"`
-	UsingResources            bool        `json:"using_resources"`
-	BookingManyTryIt          bool        `json:"booking_many_try_it"`
-	Modified                  string      `json:"modified"`
-	BookingsVisiblePublic     bool        `json:"bookings_visible_public"`
-	QuestionActive            bool        `json:"question_active"`
-	QuestionMandatory         bool        `json:"question_mandatory"`
-	QuestionLabel             string      `json:"question_label"`
-	UseParentTypeResource     bool        `json:"use_parent_type_resource"`
-	HasSubTypes               string      `json:"has_sub_types"`
+	ID                        string              `json:"id"`
+	Name                      string              `json:"name"`
+	Color                     string              `json:"color"`
+	ColorNew                  string              `json:"color_new"`
+	ColorFixed                bool                `json:"color_fixed"`
+	ColorShade                any                 `json:"color_shade"`
+	BookableTimes             bool                `json:"bookable_times"`
+	BookableTimeEvery         string              `json:"bookable_time_every"`
+	BookableLengths           string              `json:"bookable_lengths"`
+	BookableSimultaneously    bool                `json:"bookable_simultaneously"`
+	BookableBlockUserTimes    bool                `json:"bookable_block_user_times"`
+	UseBookableTimeEveryStart bool                `json:"use_bookable_time_every_start"`
+	BookingTryItText          string              `json:"booking_try_it_text"`
+	LateBookMinutes           Int64String         `json:"late_book_minutes"`
+	LateUnbookMinutes         Int64String         `json:"late_unbook_minutes"`
+	DaysInFutureBook          NullableInt64String `json:"days_in_future_book"`
+	MultipleParticipants      bool                `json:"multiple_participants"`
+	UsingResources            bool                `json:"using_resources"`
+	BookingManyTryIt          bool                `json:"booking_many_try_it"`
+	Modified                  string              `json:"modified"`
+	BookingsVisiblePublic     bool                `json:"bookings_visible_public"`
+	QuestionActive            bool                `json:"question_active"`
+	QuestionMandatory         bool                `json:"question_mandatory"`
+	QuestionLabel             string              `json:"question_label"`
+	UseParentTypeResource     bool                `json:"use_parent_type_resource"`
+	HasSubTypes               string              `json:"has_sub_types"`
 }
 
 type User struct {
