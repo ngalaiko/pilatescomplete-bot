@@ -134,8 +134,8 @@
 .event.unavailable { border-left-color: var(--status-unavailable); }
 .event.unavailable .event-action input[type="submit"] { background-color: var(--status-unavailable); }
 
-.event.future-booking { border-left-color: var(--status-future-booking); }
-.event.future-booking .event-action input[type="submit"] { background-color: var(--status-future-booking); }
+.event.scheduled { border-left-color: var(--status-scheduled); }
+.event.scheduled .event-action input[type="submit"] { background-color: var(--status-scheduled); }
 
 /* HTMX Styles */
 .htmx-indicator {

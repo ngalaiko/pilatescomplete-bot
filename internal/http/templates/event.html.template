@@ -7,7 +7,7 @@
 		{{ else if and .Booking .Booking.IsReserved }}
 			reserved
 		{{ else if and .Booking .Booking.IsJobScheduled }}
-			future-booking
+			scheduled
 		{{ else if .FullyBooked }}
 			unavailable
 		{{ else  if .Bookable }}
@@ -58,7 +58,7 @@
 			hx-swap="outerHTML"
 			hx-confirm="Are you sure you want to cancel reservation?"
 		>
-			<input type="submit" value="Reserved" />
+			<input type="submit" value="Scheduled ⌛" />
 			<input class="htmx-indicator" type="submit" disabled value="Loading" />
 		</form>
 	{{ else if (now.Before .BookableFrom) }}

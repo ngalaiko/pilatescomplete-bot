@@ -19,7 +19,7 @@
   --status-reserved: #5856d6;
   --status-booked: #007aff;
   --status-unavailable: #ff3b30;
-  --status-future-booking: #64d2ff;
+  --status-scheduled: #64d2ff;
   
   /* Chart Colors */
   --chart-color: var(--primary-blue);
