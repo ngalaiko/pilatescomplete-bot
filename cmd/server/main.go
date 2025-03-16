@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"net"
@@ -26,7 +27,9 @@ import (
 	"github.com/pilatescomplete-bot/internal/notifications"
 	"github.com/pilatescomplete-bot/internal/pilatescomplete"
 	"github.com/pilatescomplete-bot/internal/statistics"
+	"github.com/pilatescomplete-bot/internal/telegram"
 	"github.com/pilatescomplete-bot/internal/tokens"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -34,10 +37,15 @@ func main() {
 	dbPath := flag.String("database-path", "pilatedcomplete.db", "path to the database")
 	key := flag.String("encryption-key", "please-change-me", "encryption key for the database")
 	watch := flag.Bool("watch", false, "if true, will serve from filesystem")
+	telegramBotToken := flag.String("telegram-bot-token", "", "Telegram bot token")
 	flag.Parse()
 
 	if envKey := os.Getenv("ENCRYPTION_KEY"); envKey != "" {
 		key = &envKey
+	}
+
+	if envKey := os.Getenv("TELEGRAM_BOT_TOKEN"); envKey != "" {
+		telegramBotToken = &envKey
 	}
 
 	encryptionKey, err := keys.ParseKey([]byte(*key))
@@ -48,17 +56,27 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: new(slog.LevelVar),
-	}))
-
 	db, err := badger.Open(badger.DefaultOptions(*dbPath))
 	if err != nil {
 		log.Fatalf("[ERROR] db: %s", err)
 	}
 
+	telegramStore := telegram.NewStore(db)
+	telegramBot, err := telegram.NewBot(telegramStore, *telegramBotToken)
+	if err != nil {
+		log.Fatalf("[ERROR] telegram bot: %s", err)
+	}
+
+	var handler slog.Handler
+	handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: new(slog.LevelVar),
+	})
+	handler = telegram.NewSlogHandler(telegramBot, handler)
+	logger := slog.New(handler)
+
 	if err := migrations.Run(logger, db); err != nil {
-		log.Fatalf("[ERROR] db migratons: %s", err)
+		logger.ErrorContext(ctx, "migrations", "error", err)
+		os.Exit(1)
 	}
 
 	var renderer templates.Renderer
@@ -83,7 +101,8 @@ func main() {
 	notificationsService := notifications.NewService(apiClient)
 	statisticsService := statistics.NewService(notificationsService)
 	if err := scheduler.Init(ctx); err != nil {
-		log.Fatalf("[ERROR] init scheduler: %s", err)
+		log.Fatalf("[ERROR] scheduler init: %s", err)
+		os.Exit(1)
 	}
 	htmlHandler := httpx.Handler(
 		logger,
@@ -111,6 +130,7 @@ func main() {
 		sig := <-shutdownCh
 
 		log.Printf("[INFO] received %s, shutting down", sig)
+		cancel()
 
 		shutdownTimeout := 15 * time.Second
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
@@ -121,16 +141,33 @@ func main() {
 
 	ln, err := net.Listen("tcp", *addr)
 	if err != nil {
-		log.Fatalf("[ERROR] tcp: %s", err)
+		logger.ErrorContext(ctx, "listen", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("[INFO] listening on %s", ln.Addr())
+	logger.InfoContext(ctx, "listen", "address", ln.Addr())
 
-	if err := httpServer.Serve(ln); err != http.ErrServerClosed {
-		log.Printf("[ERROR] http serve: %s", err)
+	errGroup := errgroup.Group{}
+	errGroup.Go(func() error {
+		if err := httpServer.Serve(ln); err != http.ErrServerClosed {
+			return fmt.Errorf("http serve: %w", err)
+		}
+		return nil
+	})
+	errGroup.Go(func() error {
+		if err := telegramBot.Listen(ctx); err != nil {
+			return fmt.Errorf("telegram bot listen: %w", err)
+		}
+		return nil
+	})
+
+	if err := errGroup.Wait(); err != nil {
+		logger.ErrorContext(ctx, "error", "error", err)
+		os.Exit(1)
 	}
 
 	if err := <-errCh; err != nil {
-		log.Printf("[ERROR] error during shutdown: %s", err)
+		logger.ErrorContext(ctx, "shutdown", "error", err)
+		os.Exit(1)
 	}
 
 	log.Printf("[INFO] application stopped")
