@@ -24,7 +24,7 @@ func NewSlogHandler(bot *Bot, next slog.Handler) *SlogHandler {
 }
 
 func (h *SlogHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return l >= slog.LevelInfo
+	return l >= slog.LevelWarn
 }
 
 // Handle intercepts logs and sends error logs to Telegram.

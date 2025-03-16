@@ -158,7 +158,7 @@ func (s *Scheduler) runJob(job *Job) {
 			s.deleteTimer(job)
 		}
 	} else {
-		s.logger.Error("job succeeded", "job_id", job.ID)
+		s.logger.Warn("job succeeded", "job_id", job.ID)
 		job.Status = StatusSucceded
 		job.Errors = append(job.Errors, "")
 		s.deleteTimer(job)
