@@ -14,7 +14,7 @@ import (
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
-const MAX_ATTEMPTS = 5
+const MAX_ATTEMPTS = 2
 
 type Scheduler struct {
 	store                 *Store
@@ -187,7 +187,7 @@ func (s *Scheduler) runJob(ctx context.Context, job *Job) error {
 }
 
 func nextRetry(job *Job) *time.Time {
-	if len(job.Attempts) == MAX_ATTEMPTS {
+	if len(job.Attempts) >= MAX_ATTEMPTS {
 		return nil
 	}
 	next := job.Time.Add(100 * time.Millisecond * 2 << len(job.Attempts))
