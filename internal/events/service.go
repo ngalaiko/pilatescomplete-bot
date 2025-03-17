@@ -64,14 +64,15 @@ func (s *Service) listEvents(ctx context.Context, input pilatescomplete.ListEven
 		eventIDs = append(eventIDs, event.ID)
 		eventsByID[event.ID] = event
 	}
-	bookingJobs, err := s.jobsStore.ListJobs(ctx, jobs.BookEventsByCredentialsIDEventIDs(token.CredentialsID, eventIDs...))
+	bookingJobs, err := s.jobsStore.ListJobs(ctx,
+		jobs.BookEventsByCredentialsIDEventIDs(token.CredentialsID, eventIDs...),
+		jobs.ExcludeSuccseeded(),
+		jobs.ExcludeFailed(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	for _, job := range bookingJobs {
-		if job.Status == jobs.StatusSucceded {
-			continue
-		}
 		eventsByID[job.BookEvent.EventID].Booking = &bookings.Booking{
 			ID:     job.ID,
 			Status: bookings.BookingStatusJobScheduled,

@@ -35,6 +35,18 @@ func (s *Store) InsertJob(_ context.Context, job *Job) error {
 
 var ErrNotFound = errors.New("not found")
 
+func ExcludeFailed() func(*Job) bool {
+	return func(job *Job) bool {
+		return len(job.Attempts) < MAX_ATTEMPTS
+	}
+}
+
+func ExcludeSuccseeded() func(*Job) bool {
+	return func(job *Job) bool {
+		return job.Status != StatusSucceded
+	}
+}
+
 func BookEventsByCredentialsIDEventIDs(credentialsID string, eventIDs ...string) func(*Job) bool {
 	eventIDsfilter := make(map[string]bool, len(eventIDs))
 	for _, s := range eventIDs {
