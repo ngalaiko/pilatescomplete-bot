@@ -46,7 +46,7 @@ func (j Job) Do(ctx context.Context, s *Scheduler) error {
 		if _, err := s.apiClient.BookActivity(ctx, string(j.BookEvent.EventID)); errors.Is(err, pilatescomplete.ErrActivityAlreadyBooked) {
 			return nil
 		} else if err != nil {
-			return fmt.Errorf("book activity: %w", err)
+			return err
 		}
 
 		return nil

@@ -8,14 +8,14 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
-func Run(logger *slog.Logger, db *badger.DB) error {
-	if err := renameCredentialsLoginsKey(logger, db); err != nil {
+func Run(db *badger.DB) error {
+	if err := renameCredentialsLoginsKey(db); err != nil {
 		return fmt.Errorf("rename credentials logins key: %w", err)
 	}
 	return nil
 }
 
-func renameCredentialsLoginsKey(logger *slog.Logger, db *badger.DB) error {
+func renameCredentialsLoginsKey(db *badger.DB) error {
 	return db.Update(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
@@ -30,7 +30,7 @@ func renameCredentialsLoginsKey(logger *slog.Logger, db *badger.DB) error {
 			if err := txn.Delete(it.Item().Key()); err != nil {
 				return fmt.Errorf("delete old key: %w", err)
 			}
-			logger.Info(
+			slog.Info(
 				"credentials migrated",
 				"old_ley", string(it.Item().Key()),
 				"new_key", string(newKey))

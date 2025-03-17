@@ -15,28 +15,36 @@ import (
 )
 
 type Scheduler struct {
-	logger                *slog.Logger
 	store                 *Store
 	apiClient             *pilatescomplete.APIClient
 	authenticationService *authentication.Service
 
 	jobsGuard sync.RWMutex
 	jobs      map[string]*Job
+
+	jobFailedCallbacks    []func(context.Context, *Job)
+	jobSucceededCallbacks []func(context.Context, *Job)
 }
 
 func NewScheduler(
-	logger *slog.Logger,
 	store *Store,
 	apiClient *pilatescomplete.APIClient,
 	authenticationService *authentication.Service,
 ) *Scheduler {
 	return &Scheduler{
-		logger:                logger,
 		store:                 store,
 		apiClient:             apiClient,
 		authenticationService: authenticationService,
 		jobs:                  make(map[string]*Job),
 	}
+}
+
+func (s *Scheduler) OnJobFailed(cb func(context.Context, *Job)) {
+	s.jobFailedCallbacks = append(s.jobFailedCallbacks, cb)
+}
+
+func (s *Scheduler) OnJobSucceeded(cb func(context.Context, *Job)) {
+	s.jobSucceededCallbacks = append(s.jobSucceededCallbacks, cb)
 }
 
 // Init will load all pending jobs from database into memeory, and start watching them.
@@ -46,7 +54,7 @@ func (s *Scheduler) Init(ctx context.Context) error {
 		return err
 	}
 	for _, job := range jobs {
-		s.setupTimerForJob(job)
+		s.setupTimerForJob(ctx, job)
 	}
 
 	go func() {
@@ -66,7 +74,16 @@ func (s *Scheduler) Init(ctx context.Context) error {
 				s.jobsGuard.RUnlock()
 
 				for _, job := range jobsToRun {
-					s.runJob(job)
+					slog.InfoContext(ctx, "starting job", "job_id", job.ID, "attempt", len(job.Attempts))
+					if err := s.runJob(ctx, job); err != nil {
+						for _, cb := range s.jobFailedCallbacks {
+							cb(ctx, job)
+						}
+					} else {
+						for _, cb := range s.jobSucceededCallbacks {
+							cb(ctx, job)
+						}
+					}
 				}
 			}
 		}
@@ -107,8 +124,8 @@ func (s *Scheduler) DeleteByID(ctx context.Context, id string) error {
 	if err := s.store.DeleteJob(ctx, job.ID); err != nil {
 		return fmt.Errorf("delete job: %w", err)
 	}
-	s.deleteTimer(job)
-	s.logger.Info("deleted job", "job_id", job.ID)
+	s.deleteTimer(ctx, job)
+	slog.InfoContext(ctx, "deleted job", "job_id", job.ID)
 	return nil
 }
 
@@ -116,58 +133,55 @@ func (s *Scheduler) Schedule(ctx context.Context, job *Job) error {
 	if err := s.store.InsertJob(ctx, job); err != nil {
 		return fmt.Errorf("failed to insert job: %w", err)
 	}
-	s.setupTimerForJob(job)
+	s.setupTimerForJob(ctx, job)
 	return nil
 }
 
-func (s *Scheduler) deleteTimer(job *Job) {
+func (s *Scheduler) deleteTimer(ctx context.Context, job *Job) {
 	s.jobsGuard.Lock()
 	delete(s.jobs, job.ID)
 	s.jobsGuard.Unlock()
-	s.logger.Info("unscheduled job", "job_id", job.ID)
+	slog.InfoContext(ctx, "unscheduled job", "job_id", job.ID)
 }
 
-func (s *Scheduler) setupTimerForJob(job *Job) {
+func (s *Scheduler) setupTimerForJob(ctx context.Context, job *Job) {
 	s.jobsGuard.Lock()
 	s.jobs[job.ID] = job
 	s.jobsGuard.Unlock()
-	s.logger.Info("scheduled job", "job_id", job.ID)
+	slog.InfoContext(ctx, "scheduled job", "job_id", job.ID)
 }
 
-func (s *Scheduler) runJob(job *Job) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (s *Scheduler) runJob(ctx context.Context, job *Job) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	job.Status = StatusRunning
 	job.Attempts = append(job.Attempts, time.Now())
 
-	s.logger.Info("starting job", "job_id", job.ID, "attempt", len(job.Attempts))
-
 	if err := s.store.InsertJob(ctx, job); err != nil {
-		s.logger.Error("insert job", "error", err, "job_id", err)
-		return
+		return fmt.Errorf("insert job: %w", err)
 	}
 
-	if err := job.Do(ctx, s); err != nil {
-		s.logger.Error("job failed", "error", err, "job_id", err)
-		job.Errors = append(job.Errors, err.Error())
+	jobError := job.Do(ctx, s)
+	if jobError != nil {
+		job.Errors = append(job.Errors, jobError.Error())
 		job.Status = StatusFailing
 		if next := nextRetry(job); next != nil {
 			job.Time = *next
 		} else {
-			s.deleteTimer(job)
+			s.deleteTimer(ctx, job)
 		}
 	} else {
-		s.logger.Warn("job succeeded", "job_id", job.ID)
 		job.Status = StatusSucceded
 		job.Errors = append(job.Errors, "")
-		s.deleteTimer(job)
+		s.deleteTimer(ctx, job)
 	}
 
 	if err := s.store.InsertJob(ctx, job); err != nil {
-		s.logger.Error("insert job", "job_id", job.ID, "error", err)
-		return
+		return fmt.Errorf("insert job: %w", err)
 	}
+
+	return jobError
 }
 
 func nextRetry(job *Job) *time.Time {

@@ -61,21 +61,8 @@ func main() {
 		log.Fatalf("[ERROR] db: %s", err)
 	}
 
-	telegramStore := telegram.NewStore(db)
-	telegramBot, err := telegram.NewBot(telegramStore, *telegramBotToken)
-	if err != nil {
-		log.Fatalf("[ERROR] telegram bot: %s", err)
-	}
-
-	var handler slog.Handler
-	handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: new(slog.LevelVar),
-	})
-	handler = telegram.NewSlogHandler(telegramBot, handler)
-	logger := slog.New(handler)
-
-	if err := migrations.Run(logger, db); err != nil {
-		logger.ErrorContext(ctx, "migrations", "error", err)
+	if err := migrations.Run(db); err != nil {
+		slog.ErrorContext(ctx, "migrations", "error", err)
 		os.Exit(1)
 	}
 
@@ -92,10 +79,40 @@ func main() {
 	credentialsStore := credentials.NewStore(db, encryptionKey)
 	tokensStore := tokens.NewStore(db, encryptionKey)
 	jobsStore := jobs.NewStore(db)
-	apiClient := pilatescomplete.NewAPIClient(logger)
+	apiClient := pilatescomplete.NewAPIClient()
 	authenticationService := authentication.NewService(tokensStore, credentialsStore, apiClient)
 	eventsService := events.NewService(jobsStore, apiClient)
-	scheduler := jobs.NewScheduler(logger, jobsStore, apiClient, authenticationService)
+
+	telegramStore := telegram.NewStore(db)
+	telegramBot, err := telegram.NewBot(authenticationService, eventsService, telegramStore, *telegramBotToken)
+	if err != nil {
+		log.Fatalf("[ERROR] telegram bot: %s", err)
+	}
+
+	var handler slog.Handler
+	handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: new(slog.LevelVar),
+	})
+	handler = telegram.NewSlogHandler(telegramBot, handler)
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	scheduler := jobs.NewScheduler(jobsStore, apiClient, authenticationService)
+	scheduler.OnJobFailed(func(ctx context.Context, job *jobs.Job) {
+		if job.BookEvent != nil {
+			if err := telegramBot.BroadcastBookEventFailed(ctx, job); err != nil {
+				slog.ErrorContext(ctx, "broadcast book event failed", "error", err)
+			}
+		}
+	})
+	scheduler.OnJobSucceeded(func(ctx context.Context, job *jobs.Job) {
+		if job.BookEvent != nil {
+			if err := telegramBot.BroadcastEventBooked(ctx, job); err != nil {
+				slog.ErrorContext(ctx, "broadcast event booked", "error", err)
+			}
+		}
+	})
+
 	calendarsStore := calendars.NewStore(db)
 	calendarsService := calendars.NewService(calendarsStore, authenticationService, eventsService)
 	notificationsService := notifications.NewService(apiClient)
@@ -105,7 +122,6 @@ func main() {
 		os.Exit(1)
 	}
 	htmlHandler := httpx.Handler(
-		logger,
 		renderer,
 		staticHandler,
 		apiClient,
@@ -141,10 +157,10 @@ func main() {
 
 	ln, err := net.Listen("tcp", *addr)
 	if err != nil {
-		logger.ErrorContext(ctx, "listen", "error", err)
+		slog.ErrorContext(ctx, "listen", "error", err)
 		os.Exit(1)
 	}
-	logger.InfoContext(ctx, "listen", "address", ln.Addr())
+	slog.InfoContext(ctx, "listen", "address", ln.Addr())
 
 	errGroup := errgroup.Group{}
 	errGroup.Go(func() error {
@@ -161,14 +177,14 @@ func main() {
 	})
 
 	if err := errGroup.Wait(); err != nil {
-		logger.ErrorContext(ctx, "error", "error", err)
+		slog.ErrorContext(ctx, "error", "error", err)
 		os.Exit(1)
 	}
 
 	if err := <-errCh; err != nil {
-		logger.ErrorContext(ctx, "shutdown", "error", err)
+		slog.ErrorContext(ctx, "shutdown", "error", err)
 		os.Exit(1)
 	}
 
-	log.Printf("[INFO] application stopped")
+	slog.InfoContext(ctx, "application stopped")
 }

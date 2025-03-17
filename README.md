@@ -7,6 +7,7 @@ auto booking for https://pilatescomplete.wondr.se, because nobody wants to wake 
 * automatically book classes
 * ical integration for booked classes
 * statistics for visited classes
+* notifications via telegram
 
 ## development
 

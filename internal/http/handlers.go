@@ -27,7 +27,6 @@ import (
 )
 
 func Handler(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	staticHandler http.Handler,
 	apiClient *pilatescomplete.APIClient,
@@ -39,38 +38,38 @@ func Handler(
 	calendarsService *calendars.Service,
 	statisticsService *statistics.Service,
 ) http.HandlerFunc {
-	requireAuth := WithAuthentication(logger, authenticationService, credentialsStore)
+	requireAuth := WithAuthentication(authenticationService, credentialsStore)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(logger, renderer, eventsService)))
-	mux.HandleFunc("GET /statistics/year/{year}/{$}", requireAuth(handleYearStatistics(logger, renderer, statisticsService)))
-	mux.HandleFunc("GET /statistics/year/{year}/month/{month}/{$}", requireAuth(handleYearMonthStatistics(logger, renderer, statisticsService)))
-	mux.HandleFunc("GET /statistics/year/{year}/week/{week}/{$}", requireAuth(handleYearWeekStatistics(logger, renderer, statisticsService)))
+	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(renderer, eventsService)))
+	mux.HandleFunc("GET /statistics/year/{year}/{$}", requireAuth(handleYearStatistics(renderer, statisticsService)))
+	mux.HandleFunc("GET /statistics/year/{year}/month/{month}/{$}", requireAuth(handleYearMonthStatistics(renderer, statisticsService)))
+	mux.HandleFunc("GET /statistics/year/{year}/week/{week}/{$}", requireAuth(handleYearWeekStatistics(renderer, statisticsService)))
 	mux.HandleFunc("GET /statistics/{$}", requireAuth(handleStatistics()))
-	mux.HandleFunc("POST /{$}", handleLogin(logger, apiClient, credentialsStore, tokensStore))
+	mux.HandleFunc("POST /{$}", handleLogin(apiClient, credentialsStore, tokensStore))
 
-	mux.HandleFunc("GET /login", handleAuthenticationPage(logger, renderer))
+	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
 
-	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(logger, renderer, apiClient, eventsService, scheduler)))
-	mux.HandleFunc("DELETE /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(logger, renderer, eventsService, apiClient)))
+	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(renderer, apiClient, eventsService, scheduler)))
+	mux.HandleFunc("DELETE /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(renderer, eventsService, apiClient)))
 
-	mux.HandleFunc("DELETE /events/{event_id}/jobs/{job_id}", requireAuth(handleDeleteJob(logger, renderer, eventsService, scheduler)))
+	mux.HandleFunc("DELETE /events/{event_id}/jobs/{job_id}", requireAuth(handleDeleteJob(renderer, eventsService, scheduler)))
 
-	mux.HandleFunc("GET /calendars/{calendar_id}/pilatescomplete.ics", handleGetCalendar(logger, calendarsService))
-	mux.HandleFunc("POST /calendars", requireAuth(handleCreateCalendar(logger, calendarsService)))
+	mux.HandleFunc("GET /calendars/{calendar_id}/pilatescomplete.ics", handleGetCalendar(calendarsService))
+	mux.HandleFunc("POST /calendars", requireAuth(handleCreateCalendar(calendarsService)))
 
 	mux.HandleFunc("GET /", staticHandler.ServeHTTP)
 
-	return WithAccessLogs(logger)(mux.ServeHTTP)
+	return WithAccessLogs()(mux.ServeHTTP)
 }
 
-func handleGetCalendar(logger *slog.Logger, calendarsService *calendars.Service) http.HandlerFunc {
+func handleGetCalendar(calendarsService *calendars.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		id := parts[2]
 
 		w.Header().Set("Content-Type", "text/calendar")
 		if err := calendarsService.WriteICal(r.Context(), w, id); err != nil {
-			logger.Error("write calendar", "error", err)
+			slog.ErrorContext(r.Context(), "write calendar", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -78,19 +77,18 @@ func handleGetCalendar(logger *slog.Logger, calendarsService *calendars.Service)
 }
 
 func handleCreateCalendar(
-	logger *slog.Logger,
 	calendarsService *calendars.Service,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cal, err := calendarsService.CreateCalendar(r.Context())
 		if err != nil {
-			logger.Error("create calendar", "error", err)
+			slog.ErrorContext(r.Context(), "create calendar", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		origin, err := url.Parse(r.Header.Get("Origin"))
 		if err != nil {
-			logger.Error("parse origin", "error", err)
+			slog.ErrorContext(r.Context(), "parse origin", "error", err)
 			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
@@ -99,7 +97,6 @@ func handleCreateCalendar(
 }
 
 func handleDeleteJob(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	eventsService *events.Service,
 	scheduler *jobs.Scheduler,
@@ -111,7 +108,7 @@ func handleDeleteJob(
 
 		job, err := scheduler.FindByID(r.Context(), jobID)
 		if err != nil {
-			logger.Error("find job by id", "error", err)
+			slog.ErrorContext(r.Context(), "find job by id", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -122,21 +119,21 @@ func handleDeleteJob(
 		}
 
 		if err := scheduler.DeleteByID(r.Context(), jobID); err != nil {
-			logger.Error("delete by id", "error", err)
+			slog.ErrorContext(r.Context(), "delete by id", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		event, err := eventsService.GetEvent(r.Context(), job.BookEvent.EventID)
 		if err != nil {
-			logger.Error("get event", "error", err)
+			slog.ErrorContext(r.Context(), "get event", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 
 		}
 
 		if err := renderer.RenderEvent(w, event); err != nil {
-			logger.Error("render event", "error", err)
+			slog.ErrorContext(r.Context(), "render event", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -144,7 +141,6 @@ func handleDeleteJob(
 }
 
 func handleDeleteBooking(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	eventsService *events.Service,
 	apiClient *pilatescomplete.APIClient,
@@ -155,21 +151,21 @@ func handleDeleteBooking(
 		bookingID := parts[4]
 
 		if err := apiClient.CancelBooking(r.Context(), bookingID); err != nil {
-			logger.Error("cancal booking", "error", err)
+			slog.ErrorContext(r.Context(), "cancal booking", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		event, err := eventsService.GetEvent(r.Context(), eventID)
 		if err != nil {
-			logger.Error("get event", "error", err)
+			slog.ErrorContext(r.Context(), "get event", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 
 		}
 
 		if err := renderer.RenderEvent(w, event); err != nil {
-			logger.Error("render event", "error", err)
+			slog.ErrorContext(r.Context(), "render event", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -177,7 +173,6 @@ func handleDeleteBooking(
 }
 
 func handleCreateBooking(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	apiClient *pilatescomplete.APIClient,
 	eventsService *events.Service,
@@ -188,20 +183,20 @@ func handleCreateBooking(
 		eventID := parts[2]
 
 		if err := r.ParseForm(); err != nil {
-			logger.Error("parse form", "error", err)
+			slog.ErrorContext(r.Context(), "parse form", "error", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		event, err := bookOrScheduleEventBooking(r.Context(), eventID, eventsService, scheduler, apiClient)
 		if err != nil {
-			logger.Error("book or schedule event booking", "error", err)
+			slog.ErrorContext(r.Context(), "book or schedule event booking", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if err := renderer.RenderEvent(w, event); err != nil {
-			logger.Error("render event", "error", err)
+			slog.ErrorContext(r.Context(), "render event", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -261,10 +256,10 @@ func scheduleEventBooking(
 	return event, nil
 }
 
-func handleAuthenticationPage(logger *slog.Logger, renderer templates.Renderer) http.HandlerFunc {
+func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := renderer.RenderLoginPage(w, templates.LoginData{}); err != nil {
-			logger.Error("render login page", "error", err)
+			slog.ErrorContext(r.Context(), "render login page", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -278,7 +273,6 @@ func handleStatistics() http.HandlerFunc {
 }
 
 func handleYearWeekStatistics(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	statisticsService *statistics.Service,
 ) http.HandlerFunc {
@@ -297,7 +291,7 @@ func handleYearWeekStatistics(
 
 		stats, err := statisticsService.CalculateYearWeek(r.Context(), year, week)
 		if err != nil {
-			logger.Error("calculate statistics by week", "error", err)
+			slog.ErrorContext(r.Context(), "calculate statistics by week", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -317,7 +311,7 @@ func handleYearWeekStatistics(
 			Days:     stats.Days,
 			Classes:  stats.Classes,
 		}); err != nil {
-			logger.Error("render month statistics page", "error", err)
+			slog.ErrorContext(r.Context(), "render month statistics page", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -325,7 +319,6 @@ func handleYearWeekStatistics(
 }
 
 func handleYearMonthStatistics(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	statisticsService *statistics.Service,
 ) http.HandlerFunc {
@@ -352,7 +345,7 @@ func handleYearMonthStatistics(
 
 		stats, err := statisticsService.CalculateYearMonth(r.Context(), year, month)
 		if err != nil {
-			logger.Error("calculate statistics by year", "error", err)
+			slog.ErrorContext(r.Context(), "calculate statistics by year", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -371,7 +364,7 @@ func handleYearMonthStatistics(
 			Weeks:     stats.Weeks,
 			Classes:   stats.Classes,
 		}); err != nil {
-			logger.Error("render month statistics page", "error", err)
+			slog.ErrorContext(r.Context(), "render month statistics page", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -379,7 +372,6 @@ func handleYearMonthStatistics(
 }
 
 func handleYearStatistics(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	statisticsService *statistics.Service,
 ) http.HandlerFunc {
@@ -401,7 +393,7 @@ func handleYearStatistics(
 
 		stats, err := statisticsService.CalculateYear(r.Context(), year)
 		if err != nil {
-			logger.Error("calculate statistics by year", "error", err)
+			slog.ErrorContext(r.Context(), "calculate statistics by year", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -414,7 +406,7 @@ func handleYearStatistics(
 			Months:  stats.Months,
 			Classes: stats.Classes,
 		}); err != nil {
-			logger.Error("render year statistics page", "error", err)
+			slog.ErrorContext(r.Context(), "render year statistics page", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -422,21 +414,20 @@ func handleYearStatistics(
 }
 
 func handleListEvents(
-	logger *slog.Logger,
 	renderer templates.Renderer,
 	eventsService *events.Service,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		events, err := eventsService.ListEvents(r.Context())
 		if err != nil {
-			logger.Error("list events", "error", err)
+			slog.ErrorContext(r.Context(), "list events", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		if err := renderer.RenderEventsPage(w, templates.EventsData{
 			Events: events,
 		}); err != nil {
-			logger.Error("render events page", "error", err)
+			slog.ErrorContext(r.Context(), "render events page", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -444,7 +435,6 @@ func handleListEvents(
 }
 
 func handleLogin(
-	logger *slog.Logger,
 	client *pilatescomplete.APIClient,
 	credentialsStore *credentials.Store,
 	tokensStore *tokens.Store,
@@ -453,7 +443,7 @@ func handleLogin(
 		_, isAuthenticated := tokens.FromContext(r.Context())
 		if !isAuthenticated {
 			if err := r.ParseForm(); err != nil {
-				logger.Error("perse form", "error", err)
+				slog.ErrorContext(r.Context(), "perse form", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -465,7 +455,7 @@ func handleLogin(
 				Password: password,
 			})
 			if err != nil {
-				logger.Error("login", "error", err)
+				slog.ErrorContext(r.Context(), "login", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -478,7 +468,7 @@ func handleLogin(
 					Password: password,
 				}
 				if err := credentialsStore.Insert(r.Context(), creds); err != nil {
-					logger.Error("insert credentials", "error", err)
+					slog.ErrorContext(r.Context(), "insert credentials", "error", err)
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
@@ -489,7 +479,7 @@ func handleLogin(
 				Token:         cookie.Value,
 				Expires:       cookie.Expires,
 			}); err != nil {
-				logger.Error("insert token", "error", err)
+				slog.ErrorContext(r.Context(), "insert token", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

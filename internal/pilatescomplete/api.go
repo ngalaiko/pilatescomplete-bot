@@ -28,15 +28,11 @@ var (
 )
 
 type APIClient struct {
-	logger     *slog.Logger
 	httpClient http.Client
 }
 
-func NewAPIClient(
-	logger *slog.Logger,
-) *APIClient {
+func NewAPIClient() *APIClient {
 	return &APIClient{
-		logger:     logger,
 		httpClient: http.Client{},
 	}
 }
@@ -47,7 +43,7 @@ type LoginData struct {
 }
 
 func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, error) {
-	c.logger.Info("login")
+	slog.InfoContext(ctx, "login")
 	values := url.Values{}
 
 	values.Set("_method", http.MethodPost)
@@ -113,7 +109,7 @@ func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*List
 	if err := authenticateRequest(ctx, req); err != nil {
 		return nil, err
 	}
-	c.logger.Info("api request", "method", req.Method, "url", req.URL)
+	slog.InfoContext(ctx, "api request", "method", req.Method, "url", req.URL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -146,6 +142,7 @@ type APIResponse struct {
 var (
 	ErrActivityBookingTooEarly = errors.New("too early to book the activity")
 	ErrActivityAlreadyBooked   = errors.New("activity booking already exists")
+	ErrAccessNotAllowed        = errors.New("you cant book any more activities this day")
 )
 
 func (r APIResponse) Error() error {
@@ -157,6 +154,9 @@ func (r APIResponse) Error() error {
 	}
 	if r.ErrorCode == "ACTIVITY_BOOKING_TO_EARLY" {
 		return ErrActivityBookingTooEarly
+	}
+	if r.ErrorCode == "ACCESS_NOT_ALLOWED" {
+		return ErrAccessNotAllowed
 	}
 	return r.ErrorResponse
 }
@@ -189,7 +189,7 @@ func (c APIClient) BookActivity(ctx context.Context, activityID string) (*Activi
 	if err := authenticateRequest(ctx, req); err != nil {
 		return nil, err
 	}
-	c.logger.Info("api request", "method", req.Method, "url", req.URL)
+	slog.InfoContext(ctx, "api request", "method", req.Method, "url", req.URL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -228,7 +228,7 @@ func (c APIClient) CancelBooking(ctx context.Context, activityBookingID string) 
 	if err := authenticateRequest(ctx, req); err != nil {
 		return err
 	}
-	c.logger.Info("api request", "method", req.Method, "url", req.URL)
+	slog.InfoContext(ctx, "api request", "method", req.Method, "url", req.URL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -289,7 +289,7 @@ func (c APIClient) ListNotifications(ctx context.Context, input ListNotification
 	if err := authenticateRequest(ctx, req); err != nil {
 		return nil, err
 	}
-	c.logger.Info("api request", "method", req.Method, "url", req.URL)
+	slog.InfoContext(ctx, "api request", "method", req.Method, "url", req.URL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

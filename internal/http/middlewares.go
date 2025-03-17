@@ -34,7 +34,7 @@ func (w *responseWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
-func WithAccessLogs(logger *slog.Logger) Middleware {
+func WithAccessLogs() Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -45,7 +45,7 @@ func WithAccessLogs(logger *slog.Logger) Middleware {
 
 			next(writer, r)
 
-			logger.Info("request",
+			slog.InfoContext(r.Context(), "request",
 				"method", r.Method,
 				"url", r.URL,
 				"status_code", writer.statusCode,
@@ -57,7 +57,6 @@ func WithAccessLogs(logger *slog.Logger) Middleware {
 }
 
 func WithAuthentication(
-	logger *slog.Logger,
 	authenticationService *authentication.Service,
 	credentialsStore *credentials.Store,
 ) Middleware {
@@ -73,7 +72,7 @@ func WithAuthentication(
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			} else if err != nil {
-				logger.Error("find credentials", "error", err)
+				slog.ErrorContext(r.Context(), "find credentials", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			} else {
@@ -85,7 +84,7 @@ func WithAuthentication(
 
 			ctx, err := authenticationService.AuthenticateContext(r.Context(), device.CredentialsID)
 			if err != nil {
-				logger.Error("authenticate context", "error", err)
+				slog.ErrorContext(r.Context(), "authenticate context", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
