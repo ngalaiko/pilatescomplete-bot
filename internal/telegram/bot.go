@@ -48,7 +48,7 @@ func (b *Bot) BroadcastBookEventFailed(ctx context.Context, job *jobs.Job) error
 		return fmt.Errorf("get event: %w", err)
 	}
 	msg := &tgbotapi.MessageConfig{
-		Text: fmt.Sprintf("Failed to book %s on %s: %s", event.DisplayName, event.StartTime.Format("Monday Jan 06 at 15:04"), job.Errors[len(job.Errors)-1]),
+		Text: fmt.Sprintf("Failed to book %s on %s: %s", event.DisplayName, event.StartTime.Format("Monday Jan 02 at 15:04"), job.Errors[len(job.Errors)-1]),
 		Entities: []tgbotapi.MessageEntity{
 			{
 				Type:   "bold",
@@ -73,7 +73,7 @@ func (b *Bot) BroadcastEventBooked(ctx context.Context, job *jobs.Job) error {
 		return fmt.Errorf("get event: %w", err)
 	}
 	msg := &tgbotapi.MessageConfig{
-		Text: fmt.Sprintf("Booked %s on %s", event.DisplayName, event.StartTime.Format("Monday Jan 06 at 15:04")),
+		Text: fmt.Sprintf("Booked %s on %s", event.DisplayName, event.StartTime.Format("Monday Jan 02 at 15:04")),
 		Entities: []tgbotapi.MessageEntity{
 			{
 				Type:   "bold",
