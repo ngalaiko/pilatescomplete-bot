@@ -51,7 +51,7 @@ func (s *Scheduler) OnJobSucceeded(cb func(context.Context, *Job)) {
 
 // Init will load all pending jobs from database into memeory, and start watching them.
 func (s *Scheduler) Init(ctx context.Context) error {
-	jobs, err := s.store.ListJobs(ctx, ByStatus(StatusPending, StatusFailing, StatusRunning))
+	jobs, err := s.store.ListJobs(ctx, ByStatus(StatusPending, StatusFailing, StatusRunning), ExcludeFailed())
 	if err != nil {
 		return err
 	}
