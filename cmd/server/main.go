@@ -83,35 +83,46 @@ func main() {
 	authenticationService := authentication.NewService(tokensStore, credentialsStore, apiClient)
 	eventsService := events.NewService(jobsStore, apiClient)
 
-	telegramStore := telegram.NewStore(db)
-	telegramBot, err := telegram.NewBot(authenticationService, eventsService, telegramStore, *telegramBotToken)
-	if err != nil {
-		log.Fatalf("[ERROR] telegram bot: %s", err)
-	}
-
 	var handler slog.Handler
 	handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: new(slog.LevelVar),
 	})
-	handler = telegram.NewSlogHandler(telegramBot, handler)
+
+	errGroup := errgroup.Group{}
+	scheduler := jobs.NewScheduler(jobsStore, apiClient, authenticationService)
+	if *telegramBotToken != "" {
+		telegramStore := telegram.NewStore(db)
+		telegramBot, err := telegram.NewBot(authenticationService, eventsService, telegramStore, *telegramBotToken)
+		if err != nil {
+			log.Fatalf("[ERROR] telegram bot: %s", err)
+		}
+
+		handler = telegram.NewSlogHandler(telegramBot, handler)
+		scheduler.OnJobFailed(func(ctx context.Context, job *jobs.Job) {
+			if job.BookEvent != nil {
+				if err := telegramBot.BroadcastBookEventFailed(ctx, job); err != nil {
+					slog.ErrorContext(ctx, "broadcast book event failed", "error", err)
+				}
+			}
+		})
+		scheduler.OnJobSucceeded(func(ctx context.Context, job *jobs.Job) {
+			if job.BookEvent != nil {
+				if err := telegramBot.BroadcastEventBooked(ctx, job); err != nil {
+					slog.ErrorContext(ctx, "broadcast event booked", "error", err)
+				}
+			}
+		})
+
+		errGroup.Go(func() error {
+			if err := telegramBot.Listen(ctx); err != nil {
+				return fmt.Errorf("telegram bot listen: %w", err)
+			}
+			return nil
+		})
+	}
+
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
-
-	scheduler := jobs.NewScheduler(jobsStore, apiClient, authenticationService)
-	scheduler.OnJobFailed(func(ctx context.Context, job *jobs.Job) {
-		if job.BookEvent != nil {
-			if err := telegramBot.BroadcastBookEventFailed(ctx, job); err != nil {
-				slog.ErrorContext(ctx, "broadcast book event failed", "error", err)
-			}
-		}
-	})
-	scheduler.OnJobSucceeded(func(ctx context.Context, job *jobs.Job) {
-		if job.BookEvent != nil {
-			if err := telegramBot.BroadcastEventBooked(ctx, job); err != nil {
-				slog.ErrorContext(ctx, "broadcast event booked", "error", err)
-			}
-		}
-	})
 
 	calendarsStore := calendars.NewStore(db)
 	calendarsService := calendars.NewService(calendarsStore, authenticationService, eventsService)
@@ -162,20 +173,12 @@ func main() {
 	}
 	slog.InfoContext(ctx, "listen", "address", ln.Addr())
 
-	errGroup := errgroup.Group{}
 	errGroup.Go(func() error {
 		if err := httpServer.Serve(ln); err != http.ErrServerClosed {
 			return fmt.Errorf("http serve: %w", err)
 		}
 		return nil
 	})
-	errGroup.Go(func() error {
-		if err := telegramBot.Listen(ctx); err != nil {
-			return fmt.Errorf("telegram bot listen: %w", err)
-		}
-		return nil
-	})
-
 	if err := errGroup.Wait(); err != nil {
 		slog.ErrorContext(ctx, "error", "error", err)
 		os.Exit(1)
