@@ -14,7 +14,7 @@ import (
 	"github.com/pilatescomplete-bot/internal/tokens"
 )
 
-const MAX_ATTEMPTS = 2
+const MAX_ATTEMPTS = 1
 
 type Scheduler struct {
 	store                 *Store
