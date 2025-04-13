@@ -143,6 +143,7 @@ var (
 	ErrActivityBookingTooEarly = errors.New("too early to book the activity")
 	ErrActivityAlreadyBooked   = errors.New("activity booking already exists")
 	ErrAccessNotAllowed        = errors.New("you cant book any more activities this day")
+	ErrOverbooked              = errors.New("you are currently booked on maximum allowed simultaneous bookings")
 )
 
 func (r APIResponse) Error() error {
@@ -157,6 +158,9 @@ func (r APIResponse) Error() error {
 	}
 	if r.ErrorCode == "ACCESS_NOT_ALLOWED" {
 		return ErrAccessNotAllowed
+	}
+	if r.ErrorCode == "USER_OVER_MAX_CONCURRENT_BOOKINGS" {
+		return ErrOverbooked
 	}
 	return r.ErrorResponse
 }
