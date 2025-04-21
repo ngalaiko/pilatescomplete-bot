@@ -7,7 +7,7 @@
 <nav class="nav-header">
     <div class="nav-container">
         <a href="/schedule/" class="nav-link">Schedule</a>
-        <a href="/book/" class="nav-link">Schedule</a>
+        <a href="/book/" class="nav-link">Book</a>
         <a href="/statistics/year/{{ .Year }}/" class="nav-link active">Statistics</a>
     </div>
 </nav>
