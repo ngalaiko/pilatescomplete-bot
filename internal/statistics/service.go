@@ -182,6 +182,12 @@ func (s *Service) calculateEnteries(ctx context.Context) ([]*entry, error) {
 				return nil, fmt.Errorf("failed to parse booked notification: %w", err)
 			}
 			entriesByDate[entry.Time] = entry
+		case notifications.NotificationTypeGotPlace:
+			entry, err := parseGotPlaceNotification(notification.Body)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse got place notification: %w", err)
+			}
+			entriesByDate[entry.Time] = entry
 		case notifications.NotificationTypeUnbooked:
 			entry, err := parseUnbookedNotification(notification.Body)
 			if err != nil {
@@ -207,8 +213,8 @@ func firstLine(str string) string {
 	return ""
 }
 
-func parseUnbookedNotification(notification string) (*entry, error) {
-	const prefixLength = len("Du är nu avbokad på: ")
+func parseNotification(notification string, prefix string) (*entry, error) {
+	prefixLength := len(prefix)
 	const suffixLength = len(" hos Pilates Complete")
 	const dateTimeLength = len("2024-09-01 11:15:00")
 	header := firstLine(notification)
@@ -224,21 +230,16 @@ func parseUnbookedNotification(notification string) (*entry, error) {
 	}, nil
 }
 
+func parseUnbookedNotification(notification string) (*entry, error) {
+	return parseNotification(notification, "Du är nu avbokad på: ")
+}
+
+func parseGotPlaceNotification(notification string) (*entry, error) {
+	return parseNotification(notification, "Du har fått en plats på: ")
+}
+
 func parseBookedNotification(notification string) (*entry, error) {
-	const prefixLength = len("Du är nu bokad på: ")
-	const suffixLength = len(" hos Pilates Complete")
-	const dateTimeLength = len("2024-09-01 11:15:00")
-	header := firstLine(notification)
-	value := header[prefixLength : len(header)-suffixLength]
-	time, err := time.Parse(time.DateTime, value[len(value)-dateTimeLength:])
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse date: %w", err)
-	}
-	displayName := value[:len(value)-dateTimeLength-1]
-	return &entry{
-		DisplayName: displayName,
-		Time:        time,
-	}, nil
+	return parseNotification(notification, "Du är nu bokad på: ")
 }
 
 // getDateFromISOWeek returns the date of Monday for the given ISO week

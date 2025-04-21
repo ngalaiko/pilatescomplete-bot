@@ -186,6 +186,7 @@ type NotificationType string
 const (
 	NoticicationTypeUnbooked = "WBOOKING_CONFIRMATION_UNBOOK"
 	NoticicationTypeBooked   = "WBOOKING_CONFIRMATION"
+	NotificationTypeGotPlace = "WBOOKING_RESERVE_GOT_PLACE"
 )
 
 type Notification struct {

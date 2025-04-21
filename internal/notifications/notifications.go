@@ -10,6 +10,7 @@ const (
 	NotificationTypeUnknown NotificationType = iota
 	NotificationTypeBooked
 	NotificationTypeUnbooked
+	NotificationTypeGotPlace
 )
 
 type Notification struct {
@@ -37,6 +38,8 @@ func typeFromAPI(typ pilatescomplete.NotificationType) NotificationType {
 		return NotificationTypeBooked
 	case pilatescomplete.NoticicationTypeUnbooked:
 		return NotificationTypeUnbooked
+	case pilatescomplete.NotificationTypeGotPlace:
+		return NotificationTypeGotPlace
 	default:
 		return NotificationTypeUnknown
 	}
