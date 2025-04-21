@@ -57,7 +57,8 @@ type EventsData struct {
 }
 
 type Renderer interface {
-	RenderEventsPage(io.Writer, EventsData) error
+	RenderBookPage(io.Writer, EventsData) error
+	RenderSchedulePage(io.Writer, EventsData) error
 	RenderEvent(io.Writer, *events.Event) error
 	RenderLoginPage(io.Writer, LoginData) error
 	RenderYearStatisticsPage(io.Writer, YearStatisticsData) error
@@ -126,16 +127,28 @@ func (e *FilesystemTemplates) RenderYearStatisticsPage(w io.Writer, data YearSta
 	return template.Execute(w, data)
 }
 
-func (e *FilesystemTemplates) RenderEventsPage(w io.Writer, data EventsData) error {
+func (e *FilesystemTemplates) RenderSchedulePage(w io.Writer, data EventsData) error {
 	templates, err := template.New("").Funcs(functions).ParseFS(e.filesystem, "*.template")
 	if err != nil {
 		return fmt.Errorf("parse fs: %w", err)
 	}
-	eventsTemplate, err := templates.Lookup("_layout.html.template").ParseFS(e.filesystem, "events.html.template")
+	scheduleTemplate, err := templates.Lookup("_layout.html.template").ParseFS(e.filesystem, "schedule.html.template")
 	if err != nil {
 		return fmt.Errorf("parse events template: %w", err)
 	}
-	return eventsTemplate.Execute(w, data)
+	return scheduleTemplate.Execute(w, data)
+}
+
+func (e *FilesystemTemplates) RenderBookPage(w io.Writer, data EventsData) error {
+	templates, err := template.New("").Funcs(functions).ParseFS(e.filesystem, "*.template")
+	if err != nil {
+		return fmt.Errorf("parse fs: %w", err)
+	}
+	bookTemplate, err := templates.Lookup("_layout.html.template").ParseFS(e.filesystem, "book.html.template")
+	if err != nil {
+		return fmt.Errorf("parse events template: %w", err)
+	}
+	return bookTemplate.Execute(w, data)
 }
 
 func (e *FilesystemTemplates) RenderEvent(w io.Writer, event *events.Event) error {
@@ -151,7 +164,9 @@ var _ Renderer = &EmbedTemplates{}
 type EmbedTemplates struct {
 	loginTemplate           *template.Template
 	eventTemplate           *template.Template
+	scheduleTemplate        *template.Template
 	eventsTemplate          *template.Template
+	bookTemplate            *template.Template
 	yearStatisticsTemplate  *template.Template
 	monthStatisticsTemplate *template.Template
 	weekStatisticsTemplate  *template.Template
@@ -195,7 +210,9 @@ func NewEmbedTemplates() *EmbedTemplates {
 	layoutTemplate := templates.Lookup("_layout.html.template")
 	return &EmbedTemplates{
 		loginTemplate:           template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "login.html.template")),
-		eventsTemplate:          template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "events.html.template")),
+		scheduleTemplate:        template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "schedule.html.template")),
+		bookTemplate:            template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "book.html.template")),
+		eventsTemplate:          templates.Lookup("events"),
 		eventTemplate:           templates.Lookup("event"),
 		yearStatisticsTemplate:  template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "year_statistics.html.template")),
 		monthStatisticsTemplate: template.Must(template.Must(layoutTemplate.Clone()).ParseFS(embedFS, "month_statistics.html.template")),
@@ -207,8 +224,12 @@ func (e *EmbedTemplates) RenderLoginPage(w io.Writer, data LoginData) error {
 	return e.loginTemplate.Execute(w, data)
 }
 
-func (e *EmbedTemplates) RenderEventsPage(w io.Writer, data EventsData) error {
-	return e.eventsTemplate.Execute(w, data)
+func (e *EmbedTemplates) RenderBookPage(w io.Writer, data EventsData) error {
+	return e.bookTemplate.Execute(w, data)
+}
+
+func (e *EmbedTemplates) RenderSchedulePage(w io.Writer, data EventsData) error {
+	return e.scheduleTemplate.Execute(w, data)
 }
 
 func (e *EmbedTemplates) RenderEvent(w io.Writer, event *events.Event) error {

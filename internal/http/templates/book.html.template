@@ -1,0 +1,25 @@
+{{ define "head" }}
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/calendar.css">
+
+<script src="/htmx.min.js"></script>
+{{ end }}
+
+{{ define "main" }}
+<nav class="nav-header">
+	<div class="nav-container">
+        <a href="/schedule/" class="nav-link">Schedule</a>
+        <a href="/book/" class="nav-link active">Book</a>
+		<a href="/statistics/" class="nav-link">Statistics</a>
+	</div>
+</nav>
+
+<main class="calendar">
+
+	<header class="calendar-header">
+		<h1>Book</h1>
+	</header>
+
+	{{ template "events" .Events }}
+</main>
+{{- end }}

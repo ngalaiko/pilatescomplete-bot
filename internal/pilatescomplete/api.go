@@ -83,6 +83,7 @@ func (c APIClient) Login(ctx context.Context, data LoginData) (*http.Cookie, err
 
 type ListEventsInput struct {
 	ActivityID string
+	Mine       bool
 }
 
 type ListEventsResponse struct {
@@ -94,6 +95,9 @@ func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*List
 	values := url.Values{}
 	if input.ActivityID != "" {
 		values.Set("activity", input.ActivityID)
+	}
+	if input.Mine {
+		values.Set("mine", "1")
 	}
 	req, err := http.NewRequest(
 		http.MethodGet,

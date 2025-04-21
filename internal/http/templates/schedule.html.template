@@ -1,0 +1,29 @@
+{{ define "head" }}
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/calendar.css">
+
+<script src="/htmx.min.js"></script>
+{{ end }}
+
+{{ define "main" }}
+<nav class="nav-header">
+	<div class="nav-container">
+        <a href="/schedule/" class="nav-link active">Schedule</a>
+        <a href="/book/" class="nav-link">Book</a>
+		<a href="/statistics/" class="nav-link">Statistics</a>
+	</div>
+</nav>
+
+<main class="calendar">
+	{{ $day := -1 }}
+
+	<header class="calendar-header">
+		<h1>Schedule</h1>
+		<form action="/calendars" method="POST">
+			<input class="btn btn-primary" type="submit" value="Add to calendar" />
+		</form>
+	</header>
+
+	{{ template "events" .Events }}
+</main>
+{{- end }}

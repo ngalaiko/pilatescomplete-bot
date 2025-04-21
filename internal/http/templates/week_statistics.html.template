@@ -6,8 +6,9 @@
 {{ define "main" }}
 <nav class="nav-header">
     <div class="nav-container">
-        <a href="/" class="nav-link">Schedule</a>
-        <a href="/statistics/year/{{ .Year }}/week/{{ .Week }}" class="nav-link active">Statistics</a>
+        <a href="/schedule/" class="nav-link">Schedule</a>
+        <a href="/book/" class="nav-link">Schedule</a>
+        <a href="/statistics/year/{{ .Year }}/week/{{ .Week }}/" class="nav-link active">Statistics</a>
     </div>
 </nav>
 

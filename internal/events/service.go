@@ -41,6 +41,12 @@ func (s *Service) GetEvent(ctx context.Context, id string) (*Event, error) {
 	return events[0], nil
 }
 
+func (s *Service) ListBookedEvents(ctx context.Context) ([]*Event, error) {
+	return s.listEvents(ctx, pilatescomplete.ListEventsInput{
+		Mine: true,
+	})
+}
+
 func (s *Service) ListEvents(ctx context.Context) ([]*Event, error) {
 	return s.listEvents(ctx, pilatescomplete.ListEventsInput{})
 }

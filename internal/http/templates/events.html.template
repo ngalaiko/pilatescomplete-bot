@@ -1,47 +1,23 @@
-{{ define "head" }}
-<link rel="stylesheet" href="/css/base.css">
-<link rel="stylesheet" href="/css/calendar.css">
-
-<script src="/htmx.min.js"></script>
+{{ define "events" }}
+{{ $day := -1 }}
+{{ if len . | ne 0 }}
+<section class="day">
+	<header class="day-header">{{ (index . 0).StartTime.Format "Monday 2 January"  }}</header>
+	<div class="events">
+	{{ $day = (index . 0).StartTime.Day }}
 {{ end }}
 
-{{ define "main" }}
-<nav class="nav-header">
-	<div class="nav-container">
-		<a href="/" class="nav-link active">Schedule</a>
-		<a href="/statistics/" class="nav-link">Statistics</a>
+{{- range . }}
+	{{ if ne $day .StartTime.Day }}
 	</div>
-</nav>
-
-<main class="calendar">
-	{{ $day := -1 }}
-
-	<header class="calendar-header">
-		<h1>Schedule</h1>
-		<form action="/calendars" method="POST">
-			<input class="btn btn-primary" type="submit" value="Add to calendar" />
-		</form>
-	</header>
-
-	{{ if len .Events | ne 0 }}
-	<section class="day">
-		<header class="day-header">{{ (index .Events 0).StartTime.Format "Monday 2 January"  }}</header>
-		<div class="events">
-		{{ $day = (index .Events 0).StartTime.Day }}
+</section>
+<section class="day">
+	<header class="day-header">{{ .StartTime.Format "Monday 2 January"  }}</header>
+	<div class="events">
 	{{ end }}
-
-	{{- range .Events }}
-		{{ if ne $day .StartTime.Day }}
-		</div>
-	</section>
-	<section class="day">
-		<header class="day-header">{{ .StartTime.Format "Monday 2 January"  }}</header>
-		<div class="events">
-		{{ end }}
-			{{ template "event" . }}
-		{{ $day = .StartTime.Day }}
-	{{- end }}
-		</div>
-	</section>
-</main>
+		{{ template "event" . }}
+	{{ $day = .StartTime.Day }}
 {{- end }}
+	</div>
+</section>
+{{ end }}

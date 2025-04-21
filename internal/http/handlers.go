@@ -40,7 +40,9 @@ func Handler(
 ) http.HandlerFunc {
 	requireAuth := WithAuthentication(authenticationService, credentialsStore)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", requireAuth(handleListEvents(renderer, eventsService)))
+	mux.HandleFunc("GET /{$}", requireAuth(redirectTo("/schedule/")))
+	mux.HandleFunc("GET /schedule/{$}", requireAuth(handleScheduleEvents(renderer, eventsService)))
+	mux.HandleFunc("GET /book/{$}", requireAuth(handleBookEvents(renderer, eventsService)))
 	mux.HandleFunc("GET /statistics/year/{year}/{$}", requireAuth(handleYearStatistics(renderer, statisticsService)))
 	mux.HandleFunc("GET /statistics/year/{year}/month/{month}/{$}", requireAuth(handleYearMonthStatistics(renderer, statisticsService)))
 	mux.HandleFunc("GET /statistics/year/{year}/week/{week}/{$}", requireAuth(handleYearWeekStatistics(renderer, statisticsService)))
@@ -60,6 +62,12 @@ func Handler(
 	mux.HandleFunc("GET /", staticHandler.ServeHTTP)
 
 	return WithAccessLogs()(mux.ServeHTTP)
+}
+
+func redirectTo(path string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, path, http.StatusFound)
+	}
 }
 
 func handleGetCalendar(calendarsService *calendars.Service) http.HandlerFunc {
@@ -413,7 +421,28 @@ func handleYearStatistics(
 	}
 }
 
-func handleListEvents(
+func handleScheduleEvents(
+	renderer templates.Renderer,
+	eventsService *events.Service,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		events, err := eventsService.ListBookedEvents(r.Context())
+		if err != nil {
+			slog.ErrorContext(r.Context(), "list events", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if err := renderer.RenderSchedulePage(w, templates.EventsData{
+			Events: events,
+		}); err != nil {
+			slog.ErrorContext(r.Context(), "render events page", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func handleBookEvents(
 	renderer templates.Renderer,
 	eventsService *events.Service,
 ) http.HandlerFunc {
@@ -424,7 +453,7 @@ func handleListEvents(
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if err := renderer.RenderEventsPage(w, templates.EventsData{
+		if err := renderer.RenderBookPage(w, templates.EventsData{
 			Events: events,
 		}); err != nil {
 			slog.ErrorContext(r.Context(), "render events page", "error", err)
