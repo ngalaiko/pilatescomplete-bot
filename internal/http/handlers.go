@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -51,9 +50,10 @@ func Handler(
 
 	mux.HandleFunc("GET /login", handleAuthenticationPage(renderer))
 
-	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(renderer, apiClient, eventsService, scheduler)))
+	mux.HandleFunc("POST /events/{event_id}/bookings", requireAuth(handleCreateBooking(renderer, apiClient, eventsService)))
 	mux.HandleFunc("DELETE /events/{event_id}/bookings/{booking_id}", requireAuth(handleDeleteBooking(renderer, eventsService, apiClient)))
 
+	mux.HandleFunc("POST /events/{event_id}/jobs", requireAuth(handleCreateJob(renderer, eventsService, scheduler)))
 	mux.HandleFunc("DELETE /events/{event_id}/jobs/{job_id}", requireAuth(handleDeleteJob(renderer, eventsService, scheduler)))
 
 	mux.HandleFunc("GET /calendars/{calendar_id}/pilatescomplete.ics", handleGetCalendar(calendarsService))
@@ -184,6 +184,42 @@ func handleCreateBooking(
 	renderer templates.Renderer,
 	apiClient *pilatescomplete.APIClient,
 	eventsService *events.Service,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		eventID := parts[2]
+
+		if err := r.ParseForm(); err != nil {
+			slog.ErrorContext(r.Context(), "parse form", "error", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if _, err := apiClient.BookActivity(r.Context(), eventID); errors.Is(err, pilatescomplete.ErrActivityBookingTooEarly) {
+			slog.ErrorContext(r.Context(), "book activity", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		event, err := eventsService.GetEvent(r.Context(), eventID)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "get event", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+
+		}
+
+		if err := renderer.RenderEvent(w, event); err != nil {
+			slog.ErrorContext(r.Context(), "render event", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func handleCreateJob(
+	renderer templates.Renderer,
+	eventsService *events.Service,
 	scheduler *jobs.Scheduler,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -196,11 +232,28 @@ func handleCreateBooking(
 			return
 		}
 
-		event, err := bookOrScheduleEventBooking(r.Context(), eventID, eventsService, scheduler, apiClient)
+		event, err := eventsService.GetEvent(r.Context(), eventID)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "book or schedule event booking", "error", err)
+			slog.ErrorContext(r.Context(), "get event", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
+		}
+
+		job, err := jobs.NewBookEventJob(r.Context(), eventID, event.BookableFrom)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "new book event job", "error", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if err := scheduler.Schedule(r.Context(), job); err != nil {
+			slog.ErrorContext(r.Context(), "schedule", "error", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		event.Booking = &bookings.Booking{
+			ID:     job.ID,
+			Status: bookings.BookingStatusJobScheduled,
 		}
 
 		if err := renderer.RenderEvent(w, event); err != nil {
@@ -209,59 +262,6 @@ func handleCreateBooking(
 			return
 		}
 	}
-}
-
-func bookOrScheduleEventBooking(
-	ctx context.Context,
-	eventID string,
-	eventsService *events.Service,
-	scheduler *jobs.Scheduler,
-	apiClient *pilatescomplete.APIClient,
-) (*events.Event, error) {
-	if _, err := apiClient.BookActivity(ctx, eventID); err != nil {
-		if errors.Is(err, pilatescomplete.ErrActivityBookingTooEarly) {
-			event, err := scheduleEventBooking(ctx, eventID, eventsService, scheduler)
-			if err != nil {
-				return nil, fmt.Errorf("schedule event booking: %w", err)
-			}
-			return event, nil
-		}
-		return nil, fmt.Errorf("book activity: %w", err)
-	}
-
-	event, err := eventsService.GetEvent(ctx, eventID)
-	if err != nil {
-		return nil, fmt.Errorf("get event: %w", err)
-	}
-
-	return event, nil
-}
-
-func scheduleEventBooking(
-	ctx context.Context,
-	eventID string,
-	eventsService *events.Service,
-	scheduler *jobs.Scheduler,
-) (*events.Event, error) {
-	event, err := eventsService.GetEvent(ctx, eventID)
-	if err != nil {
-		return nil, fmt.Errorf("get event: %w", err)
-	}
-
-	job, err := jobs.NewBookEventJob(ctx, eventID, event.BookableFrom)
-	if err != nil {
-		return nil, fmt.Errorf("new book event job: %w", err)
-	}
-	if err := scheduler.Schedule(ctx, job); err != nil {
-		return nil, fmt.Errorf("schedule: %w", err)
-	}
-
-	event.Booking = &bookings.Booking{
-		ID:     job.ID,
-		Status: bookings.BookingStatusJobScheduled,
-	}
-
-	return event, nil
 }
 
 func handleAuthenticationPage(renderer templates.Renderer) http.HandlerFunc {
