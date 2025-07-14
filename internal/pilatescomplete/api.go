@@ -87,8 +87,17 @@ type ListEventsInput struct {
 }
 
 type ListEventsResponse struct {
-	Events                   []*Event          `json:"activities"`
-	ActicityTypeDescriptions map[string]string `json:"activityTypeDescriptions"`
+	Events                   []*Event  `json:"activities"`
+	ActicityTypeDescriptions iHateThis `json:"activityTypeDescriptions"`
+}
+
+type iHateThis map[string]string
+
+func (m *iHateThis) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte("[]")) {
+		return nil
+	}
+	return json.Unmarshal(data, (*map[string]string)(m))
 }
 
 func (c APIClient) ListEvents(ctx context.Context, input ListEventsInput) (*ListEventsResponse, error) {
