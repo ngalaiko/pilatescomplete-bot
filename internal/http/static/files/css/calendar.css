@@ -137,6 +137,9 @@
 .event.scheduled { border-left-color: var(--status-scheduled); }
 .event.scheduled .event-action input[type="submit"] { background-color: var(--status-scheduled); }
 
+.event.missed { border-left-color: var(--status-missed); }
+.event.missed .event-action input[type="submit"] { background-color: var(--status-missed); }
+
 /* HTMX Styles */
 .htmx-indicator {
   display: none;

@@ -20,6 +20,7 @@
   --status-booked: #007aff;
   --status-unavailable: #ff3b30;
   --status-scheduled: #64d2ff;
+  --status-missed: #8e8e93;
   
   /* Chart Colors */
   --chart-color: var(--primary-blue);

@@ -4,6 +4,8 @@
 	class="event 
 		{{ if and .Booking .Booking.IsBooked  }}
 			booked
+		{{ else if and .Booking .Booking.IsMissed }}
+			missed
 		{{ else if and .Booking .Booking.IsReserved }}
 			reserved
 		{{ else if and .Booking .Booking.IsJobScheduled }}
@@ -39,6 +41,10 @@
 			<input type="submit" value="Booked" />
 			<input class="htmx-indicator" type="submit" disabled value="Loading" />
 		</form>
+	{{ else if and .Booking .Booking.IsMissed }}
+		<div class="event-action">
+			<input type="submit" value="Missed" disabled />
+		</div>
 	{{ else if and .Booking .Booking.IsReserved }}
 		<form 
 			class="event-action"

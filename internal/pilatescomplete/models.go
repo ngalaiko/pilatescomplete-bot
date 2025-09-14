@@ -13,6 +13,7 @@ type ActivityBookingStatus string
 
 const (
 	ActivityBookingStatusBooked   = "ok"
+	ActivityBookingStatusMissed   = "missed"
 	ActivityBookingStatusReserved = "reserved"
 	ActivityBookingStatusChecked  = "checked"
 )

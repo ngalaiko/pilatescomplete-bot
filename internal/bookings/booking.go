@@ -13,6 +13,7 @@ const (
 	BookingStatusReserved
 	BookingStatusBooked
 	BookingStatusChecked
+	BookingStatusMissed
 	BookingStatusJobScheduled
 )
 
@@ -21,6 +22,10 @@ type Booking struct {
 	Status BookingStatus
 	// Position conains position in a queue if status is Reserved
 	Position int64
+}
+
+func (b Booking) IsMissed() bool {
+	return b.Status == BookingStatusMissed
 }
 
 func (b Booking) IsJobScheduled() bool {
@@ -55,6 +60,8 @@ func statusFromAPI(status pilatescomplete.ActivityBookingStatus) (BookingStatus,
 		return BookingStatusReserved, nil
 	case pilatescomplete.ActivityBookingStatusChecked:
 		return BookingStatusChecked, nil
+	case pilatescomplete.ActivityBookingStatusMissed:
+		return BookingStatusMissed, nil
 	default:
 		return BookingStatusUnknown, fmt.Errorf("%q: unknown booking status", status)
 	}
