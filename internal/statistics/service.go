@@ -178,22 +178,19 @@ func (s *Service) calculateEnteries(ctx context.Context) ([]*entry, error) {
 		switch notification.Type {
 		case notifications.NotificationTypeBooked:
 			entry, err := parseBookedNotification(notification.Body)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse booked notification: %w", err)
+			if err == nil {
+				entriesByDate[entry.Time] = entry
 			}
-			entriesByDate[entry.Time] = entry
 		case notifications.NotificationTypeGotPlace:
 			entry, err := parseGotPlaceNotification(notification.Body)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse got place notification: %w", err)
+			if err == nil {
+				entriesByDate[entry.Time] = entry
 			}
-			entriesByDate[entry.Time] = entry
 		case notifications.NotificationTypeUnbooked:
 			entry, err := parseUnbookedNotification(notification.Body)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse unbooked notification: %w", err)
+			if err == nil {
+				delete(entriesByDate, entry.Time)
 			}
-			delete(entriesByDate, entry.Time)
 		default:
 			continue
 		}
@@ -214,6 +211,10 @@ func firstLine(str string) string {
 }
 
 func parseNotification(notification string, prefix string) (*entry, error) {
+	if !strings.HasPrefix(notification, prefix) {
+		return nil, fmt.Errorf("notification does not start with expected prefix")
+	}
+
 	prefixLength := len(prefix)
 	const suffixLength = len(" hos Pilates Complete")
 	const dateTimeLength = len("2024-09-01 11:15:00")
